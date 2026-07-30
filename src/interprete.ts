@@ -66,6 +66,11 @@ export interface Instantanea {
   tipo: string;
   /** `null` cuando la variable todavía no tiene valor. */
   valor: string | null;
+  /**
+   * Para variables de arreglo: el valor de cada celda (`null` si sin asignar).
+   * Ausente en variables simples. Permite dibujar el arreglo celda por celda.
+   */
+  celdas?: (string | null)[];
 }
 
 export type Resultado =
@@ -199,14 +204,20 @@ class Interprete {
   }
 
   private instantanea(): Instantanea[] {
-    return [...this.ambito.entries()].map(([nombre, celda]) => ({
-      nombre,
-      tipo:
-        celda.tipo.clase === "TipoSimple"
-          ? celda.tipo.tipo
-          : `Arreglo De ${celda.tipo.base}`,
-      valor: celda.valor === undefined ? null : mostrar(celda.valor),
-    }));
+    return [...this.ambito.entries()].map(([nombre, celda]) => {
+      const dato: Instantanea = {
+        nombre,
+        tipo:
+          celda.tipo.clase === "TipoSimple"
+            ? celda.tipo.tipo
+            : `Arreglo De ${celda.tipo.base}`,
+        valor: celda.valor === undefined ? null : mostrar(celda.valor),
+      };
+      if (celda.valor !== undefined && celda.valor.clase === "Arreglo") {
+        dato.celdas = celda.valor.celdas.map((c) => (c === undefined ? null : mostrar(c)));
+      }
+      return dato;
+    });
   }
 
   // ----------------------------------------------------------------

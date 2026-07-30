@@ -88,3 +88,82 @@ export function iniciar(
     terminada,
   };
 }
+
+export interface ControladorPasos {
+  /** Avanza al siguiente paso. Sin efecto si no hay un paso esperando. */
+  siguiente(): void;
+  detener(): void;
+  readonly terminada: Promise<Resultado | null>;
+}
+
+/**
+ * Ejecuta pausando en cada sentencia hasta que quien controla pide avanzar.
+ *
+ * Es la variante de `iniciar` para el modo paso a paso: en vez de correr de
+ * corrido y solo *avisar* de cada paso, se detiene en cada uno. La salida y la
+ * entrada siguen igual; lo único nuevo es la barrera que espera a `siguiente()`.
+ * Como avanza a pedido, no hay riesgo de congelar la página ni de bucle infinito.
+ */
+export function visualizar(programa: Programa, consola: Consola): ControladorPasos {
+  const generador = ejecutar(programa, { pasoAPaso: true });
+  let detenido = false;
+  let liberar: (() => void) | null = null;
+
+  const esperarSiguiente = (): Promise<void> =>
+    new Promise((resolver) => {
+      liberar = resolver;
+    });
+
+  const terminada = (async (): Promise<Resultado | null> => {
+    let respuesta: string | undefined;
+    let paso = generador.next();
+
+    while (!paso.done) {
+      if (detenido) {
+        generador.return({ clase: "terminado", pasos: 0 });
+        return null;
+      }
+
+      const evento = paso.value;
+
+      if (evento.clase === "salida") {
+        consola.escribir(evento.texto, evento.sinSalto);
+        respuesta = undefined;
+      } else if (evento.clase === "entrada") {
+        respuesta = await consola.pedir(evento);
+        if (respuesta === undefined) {
+          generador.return({ clase: "terminado", pasos: 0 });
+          return null;
+        }
+      } else {
+        // Un paso: mostrar el estado y esperar a que pidan avanzar.
+        consola.paso?.(evento);
+        await esperarSiguiente();
+        if (detenido) {
+          generador.return({ clase: "terminado", pasos: 0 });
+          return null;
+        }
+        respuesta = undefined;
+      }
+
+      paso = generador.next(respuesta);
+    }
+
+    return paso.value;
+  })();
+
+  return {
+    siguiente() {
+      const r = liberar;
+      liberar = null;
+      r?.();
+    },
+    detener() {
+      detenido = true;
+      const r = liberar;
+      liberar = null;
+      r?.();
+    },
+    terminada,
+  };
+}

@@ -5,15 +5,16 @@
  * acá se convierten en subrayados de CodeMirror. Nada de esto necesita
  * servidor: son funciones puras sobre una cadena de texto.
  */
-import { EditorState } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, crosshairCursor } from "@codemirror/view";
+import { EditorState, StateEffect, StateField } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, crosshairCursor, Decoration, type DecorationSet } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentUnit } from "@codemirror/language";
 import { linter, lintGutter, type Diagnostic as DiagnosticoCM } from "@codemirror/lint";
 
 import { analizar, compilar, formatear, ANCHO_SANGRIA, type Diagnostico } from "./analisis.ts";
 import { lenguajeSeudocodigo } from "./lenguaje.ts";
-import { iniciar, type Consola, type Controlador } from "./ejecucion.ts";
+import { iniciar, visualizar, type Consola, type Controlador, type ControladorPasos } from "./ejecucion.ts";
+import type { Instantanea } from "../src/interprete.ts";
 import { formatear as formatearDiagnostico } from "../src/diagnostico.ts";
 import { cargarEjercicio, cargarIndice, cargarSolucion } from "./ejercicios.ts";
 import {
@@ -267,6 +268,38 @@ function leerSesion(): Sesion | null {
 
 const sesionPrevia = leerSesion();
 
+// --- Resaltado de la línea que el visualizador está por ejecutar ---
+const efectoLineaPaso = StateEffect.define<number | null>();
+
+const campoLineaPaso = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes);
+    for (const efecto of tr.effects) {
+      if (!efecto.is(efectoLineaPaso)) continue;
+      if (efecto.value === null) {
+        deco = Decoration.none;
+      } else {
+        const n = Math.max(1, Math.min(efecto.value, tr.state.doc.lines));
+        const linea = tr.state.doc.line(n);
+        deco = Decoration.set([Decoration.line({ class: "cm-linea-paso" }).range(linea.from)]);
+      }
+    }
+    return deco;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+/** Resalta la línea `linea` (1-based) y la trae a la vista; `null` la limpia. */
+function resaltarLineaPaso(linea: number | null): void {
+  const efectos: StateEffect<unknown>[] = [efectoLineaPaso.of(linea)];
+  if (linea !== null) {
+    const n = Math.max(1, Math.min(linea, vista.state.doc.lines));
+    efectos.push(EditorView.scrollIntoView(vista.state.doc.line(n).from, { y: "center" }));
+  }
+  vista.dispatch({ effects: efectos });
+}
+
 const vista = new EditorView({
   parent: contenedor,
   state: EditorState.create({
@@ -284,6 +317,7 @@ const vista = new EditorView({
       lenguajeSeudocodigo(),
       lintGutter(),
       revisor,
+      campoLineaPaso,
       keymap.of([
         { key: "Shift-Alt-f", run: comandoFormatear },
         {
@@ -333,6 +367,7 @@ const vista = new EditorView({
           resolverEntrada?.(undefined);
           resolverEntrada = null;
         }
+        if (visualizador !== null) detenerVisualizacion();
       }),
       EditorView.theme({
         "&": { fontSize: "14px", height: "100%" },
@@ -345,6 +380,7 @@ const vista = new EditorView({
         },
         ".cm-activeLineGutter": { background: "transparent", color: "var(--texto)" },
         ".cm-activeLine": { background: "var(--linea-activa)" },
+        ".cm-linea-paso": { backgroundColor: "var(--paso-resaltado)" },
       }),
     ],
   }),
@@ -361,9 +397,18 @@ const etiquetaEntrada = document.querySelector<HTMLElement>("#etiqueta-entrada")
 const btnEjecutar = document.querySelector<HTMLButtonElement>("#btn-ejecutar")!;
 const btnDetener = document.querySelector<HTMLButtonElement>("#btn-detener")!;
 const btnEnviar = document.querySelector<HTMLButtonElement>("#btn-enviar")!;
+const btnPaso = document.querySelector<HTMLButtonElement>("#btn-paso")!;
+const barraPaso = document.querySelector<HTMLElement>("#barra-paso")!;
+const btnPasoSiguiente = document.querySelector<HTMLButtonElement>("#btn-paso-siguiente")!;
+const btnPasoPlay = document.querySelector<HTMLButtonElement>("#btn-paso-play")!;
+const pasoVelocidad = document.querySelector<HTMLInputElement>("#paso-velocidad")!;
+const panelVariables = document.querySelector<HTMLElement>("#variables")!;
 
 let corriendo: Controlador | null = null;
 let resolverEntrada: ((valor: string | undefined) => void) | null = null;
+let visualizador: ControladorPasos | null = null;
+let visualizando = false;
+let intervaloPlay: number | null = null;
 
 function anexar(texto: string, clase?: string): void {
   const nodo = document.createElement("span");
@@ -411,6 +456,10 @@ const consolaDelPrograma: Consola = {
       resolverEntrada = resolver;
     });
   },
+  paso(evento) {
+    renderVariables(evento.variables);
+    resaltarLineaPaso(evento.pos.linea);
+  },
 };
 
 function terminarEjecucion(): void {
@@ -418,11 +467,12 @@ function terminarEjecucion(): void {
   resolverEntrada = null;
   mostrarEntrada(false);
   btnEjecutar.hidden = false;
+  btnPaso.hidden = false;
   btnDetener.hidden = true;
 }
 
 async function ejecutarPrograma(): Promise<void> {
-  if (corriendo !== null) return;
+  if (corriendo !== null || visualizador !== null) return;
 
   const fuente = vista.state.doc.toString();
   const compilado = compilar(fuente);
@@ -446,6 +496,7 @@ async function ejecutarPrograma(): Promise<void> {
   }
 
   btnEjecutar.hidden = true;
+  btnPaso.hidden = true;
   btnDetener.hidden = false;
 
   corriendo = iniciar(compilado.programa, consolaDelPrograma);
@@ -471,10 +522,157 @@ async function ejecutarPrograma(): Promise<void> {
 btnEjecutar.addEventListener("click", () => void ejecutarPrograma());
 btnDetener.addEventListener("click", () => {
   corriendo?.detener();
+  visualizador?.detener();
   // Si estaba esperando entrada, hay que despertar la promesa.
   resolverEntrada?.(undefined);
   resolverEntrada = null;
 });
+
+// ------------------------------------------------------------------
+// Paso a paso
+// ------------------------------------------------------------------
+
+/** Dibuja el estado de las variables: simples como valor, arreglos en celdas. */
+function renderVariables(variables: Instantanea[]): void {
+  panelVariables.textContent = "";
+
+  if (variables.length === 0) {
+    const vacio = document.createElement("p");
+    vacio.className = "vacio";
+    vacio.textContent = "Todavía no hay variables en este alcance.";
+    panelVariables.appendChild(vacio);
+    return;
+  }
+
+  for (const v of variables) {
+    const bloque = document.createElement("div");
+    bloque.className = "var";
+
+    const cabecera = document.createElement("div");
+    cabecera.className = "var-cabecera";
+    const nombre = document.createElement("span");
+    nombre.className = "var-nombre";
+    nombre.textContent = v.nombre;
+    const tipo = document.createElement("span");
+    tipo.className = "var-tipo";
+    tipo.textContent = v.tipo;
+    cabecera.append(nombre, tipo);
+    bloque.appendChild(cabecera);
+
+    if (v.celdas !== undefined) {
+      const arreglo = document.createElement("div");
+      arreglo.className = "arreglo";
+      v.celdas.forEach((celda, i) => {
+        const caja = document.createElement("div");
+        caja.className = "celda";
+        const idx = document.createElement("span");
+        idx.className = "idx";
+        idx.textContent = String(i);
+        const val = document.createElement("span");
+        val.className = celda === null ? "val vacia" : "val";
+        val.textContent = celda ?? "—";
+        caja.append(idx, val);
+        arreglo.appendChild(caja);
+      });
+      bloque.appendChild(arreglo);
+    } else {
+      const valor = document.createElement("div");
+      valor.className = v.valor === null ? "var-valor sinvalor" : "var-valor";
+      valor.textContent = v.valor ?? "sin valor";
+      bloque.appendChild(valor);
+    }
+
+    panelVariables.appendChild(bloque);
+  }
+}
+
+function detenerPlay(): void {
+  if (intervaloPlay !== null) {
+    clearInterval(intervaloPlay);
+    intervaloPlay = null;
+  }
+  btnPasoPlay.textContent = "Reproducir";
+}
+
+/** Alterna la reproducción automática. El slider (1..10) fija la demora. */
+function alternarPlay(): void {
+  if (visualizador === null) return;
+  if (intervaloPlay !== null) {
+    detenerPlay();
+    return;
+  }
+  const nivel = Number(pasoVelocidad.value);
+  const demora = 1100 - nivel * 100; // 1000 ms (lento) .. 100 ms (rápido)
+  btnPasoPlay.textContent = "Pausar";
+  intervaloPlay = window.setInterval(() => visualizador?.siguiente(), demora);
+}
+
+/** Restablece la interfaz cuando la visualización termina o se corta. */
+function limpiarVisualizacion(): void {
+  detenerPlay();
+  visualizando = false;
+  visualizador = null;
+  resaltarLineaPaso(null);
+  barraPaso.hidden = true;
+  btnDetener.hidden = true;
+  btnEjecutar.hidden = false;
+  btnPaso.hidden = false;
+  mostrarEntrada(false);
+  resolverEntrada = null;
+  ajustarPanelInferior();
+}
+
+/** Corta la visualización en curso (botón Detener o edición del código). */
+function detenerVisualizacion(): void {
+  visualizador?.detener();
+  resolverEntrada?.(undefined);
+  resolverEntrada = null;
+}
+
+async function iniciarVisualizacion(): Promise<void> {
+  if (corriendo !== null || visualizador !== null) return;
+
+  const compilado = compilar(vista.state.doc.toString());
+  consola.textContent = "";
+
+  if (!compilado.ok) {
+    const n = compilado.diagnosticos.length;
+    anexar(
+      `No se puede ejecutar: ${n} ${n === 1 ? "error" : "errores"}. Están en el panel de abajo.\n`,
+      "roto",
+    );
+    return;
+  }
+
+  visualizando = true;
+  btnEjecutar.hidden = true;
+  btnPaso.hidden = true;
+  btnDetener.hidden = false;
+  barraPaso.hidden = false;
+  btnPasoPlay.textContent = "Reproducir";
+  panelVariables.textContent = "";
+  ajustarPanelInferior();
+  anexar("Paso a paso: usá «Siguiente» o «Reproducir». La línea actual va resaltada.\n", "fin");
+
+  visualizador = visualizar(compilado.programa, consolaDelPrograma);
+  const resultado = await visualizador.terminada;
+  limpiarVisualizacion();
+
+  if (resultado === null) {
+    anexar("\n— detenido —\n", "fin");
+  } else if (resultado.clase === "error") {
+    anexar("\n" + formatearDiagnostico(resultado.diagnostico) + "\n", "roto");
+  } else {
+    anexar(`\n— terminó (${resultado.pasos.toLocaleString("es")} pasos) —\n`, "fin");
+  }
+}
+
+btnPaso.addEventListener("click", () => void iniciarVisualizacion());
+btnPasoSiguiente.addEventListener("click", () => {
+  detenerPlay(); // un paso a mano pausa la reproducción
+  visualizador?.siguiente();
+});
+btnPasoPlay.addEventListener("click", alternarPlay);
 
 // ------------------------------------------------------------------
 // Ejercicios
@@ -518,6 +716,15 @@ function mostrarEnunciado(ejercicio: Ejercicio): void {
  * revés. Cuando el código está limpio, vuelve el enunciado.
  */
 function ajustarPanelInferior(): void {
+  // Mientras se visualiza, el panel muestra las variables por encima de todo.
+  if (visualizando) {
+    panelVariables.hidden = false;
+    salida.hidden = true;
+    panelEnunciado.hidden = true;
+    tituloPanelInferior.textContent = "Variables";
+    return;
+  }
+  panelVariables.hidden = true;
   const hayErrores = analizar(vista.state.doc.toString()).some(
     (d) => d.severidad === "error",
   );
@@ -533,7 +740,7 @@ function claseDeCaso(caso: ResultadoCaso): string {
 }
 
 function verificar(): void {
-  if (ejercicioActual === null) return;
+  if (ejercicioActual === null || visualizador !== null || corriendo !== null) return;
 
   const compilado = compilar(vista.state.doc.toString());
   consola.textContent = "";

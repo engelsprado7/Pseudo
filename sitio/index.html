@@ -30,6 +30,8 @@
     --ok: #2c7a4b;
     --aviso: #b0761a;
     --err: #c22c2c;
+
+    --paso-resaltado: #fbeaa3;
   }
 
   @media (prefers-color-scheme: dark) {
@@ -55,6 +57,8 @@
       --ok: #8ed09c;
       --aviso: #e0b464;
       --err: #f08a8a;
+
+      --paso-resaltado: #4d431f;
     }
   }
 
@@ -205,6 +209,8 @@
     padding: 8px 14px;
     border-top: 1px solid var(--borde);
   }
+  /* Un display explícito gana al atributo [hidden]; hay que reponer el none. */
+  #fila-entrada[hidden] { display: none; }
   #etiqueta-entrada { font-size: 12px; color: var(--tenue); white-space: nowrap; }
   #campo-entrada {
     flex: 1;
@@ -267,6 +273,49 @@
     margin: 0 0 8px;
     overflow: auto;
   }
+
+  /* Paso a paso */
+  #barra-paso {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 0 14px 8px;
+  }
+  /* Un display explícito gana al atributo [hidden]; hay que reponer el none. */
+  #barra-paso[hidden] { display: none; }
+  #barra-paso button { font-size: 12px; padding: 3px 9px; }
+  #etiqueta-velocidad {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--tenue);
+  }
+  #paso-velocidad { width: 88px; }
+
+  #variables { padding: 0 14px 14px; overflow: auto; flex: 1; }
+  #variables .vacio { margin-top: 0; }
+
+  .var { margin-bottom: 11px; font-family: var(--mono); font-size: 13px; }
+  .var-cabecera { display: flex; gap: 8px; align-items: baseline; margin-bottom: 3px; }
+  .var-nombre { font-weight: 600; color: var(--sx-variable); }
+  .var-tipo { font-size: 11px; color: var(--tenue); }
+  .var-valor { color: var(--sx-numero); }
+  .var-valor.sinvalor { color: var(--tenue); }
+
+  .arreglo { display: flex; flex-wrap: wrap; gap: 4px; }
+  .celda { display: flex; flex-direction: column; align-items: center; }
+  .celda .idx { font-size: 10px; color: var(--tenue); line-height: 1.4; }
+  .celda .val {
+    min-width: 30px;
+    text-align: center;
+    padding: 3px 6px;
+    border: 1px solid var(--borde);
+    border-radius: 5px;
+    background: var(--fondo);
+  }
+  .celda .val.vacia { color: var(--tenue); }
 
   .caso {
     padding: 8px 11px;
@@ -336,6 +385,7 @@
     <option value="">Sin ejercicio</option>
   </select>
   <button id="btn-ejecutar" title="Ctrl+Enter">Ejecutar</button>
+  <button id="btn-paso" title="Ejecutar mostrando cada paso y las variables">Paso a paso</button>
   <button id="btn-verificar" hidden title="Ctrl+Shift+Enter">Verificar</button>
   <button id="btn-detener" hidden>Detener</button>
 </header>
@@ -357,8 +407,16 @@
     </section>
     <section id="panel-problemas">
       <h2 id="titulo-panel-inferior">Problemas</h2>
+      <div id="barra-paso" hidden>
+        <button id="btn-paso-siguiente" title="Ejecutar la siguiente sentencia">Siguiente ▸</button>
+        <button id="btn-paso-play" title="Avanzar solo">Reproducir</button>
+        <label id="etiqueta-velocidad">Velocidad
+          <input id="paso-velocidad" type="range" min="1" max="10" value="5" aria-label="Velocidad">
+        </label>
+      </div>
       <div id="salida"></div>
       <div id="enunciado" hidden></div>
+      <div id="variables" hidden></div>
     </section>
   </aside>
 </main>
