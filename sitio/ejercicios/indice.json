@@ -1,0 +1,18 @@
+[
+  {
+    "archivo": "01-area-rectangulo.md",
+    "titulo": "Área de un rectángulo"
+  },
+  {
+    "archivo": "02-mayor-de-tres.md",
+    "titulo": "El mayor de tres números"
+  },
+  {
+    "archivo": "03-promedio-notas.md",
+    "titulo": "Promedio de notas"
+  },
+  {
+    "archivo": "04-tabla-multiplicar.md",
+    "titulo": "Tabla de multiplicar"
+  }
+]

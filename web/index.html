@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de seudocódigo</title>
+<style>
+  :root {
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    --fondo: #fbfaf7;
+    --panel: #ffffff;
+    --borde: #e3e0d8;
+    --texto: #23231f;
+    --tenue: #8a8880;
+    --linea-activa: #f3f1ea;
+
+    --sx-clave: #7a3fa8;
+    --sx-tipo: #1a6e8c;
+    --sx-oplogico: #a8531f;
+    --sx-texto: #2c7a4b;
+    --sx-numero: #b0521a;
+    --sx-comentario: #8a8880;
+    --sx-operador: #5c5a54;
+    --sx-variable: #23231f;
+    --sx-funcion: #1c4f9c;
+    --sx-error: #c22c2c;
+
+    --ok: #2c7a4b;
+    --aviso: #b0761a;
+    --err: #c22c2c;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #191917;
+      --panel: #21211e;
+      --borde: #35342f;
+      --texto: #e8e6df;
+      --tenue: #8f8d85;
+      --linea-activa: #24241f;
+
+      --sx-clave: #c79ae8;
+      --sx-tipo: #7ec8e0;
+      --sx-oplogico: #e8a06a;
+      --sx-texto: #8ed09c;
+      --sx-numero: #e8a877;
+      --sx-comentario: #7d7b74;
+      --sx-operador: #b0aea6;
+      --sx-variable: #e8e6df;
+      --sx-funcion: #8ab6f0;
+      --sx-error: #f08a8a;
+
+      --ok: #8ed09c;
+      --aviso: #e0b464;
+      --err: #f08a8a;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--fondo);
+    color: var(--texto);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--borde);
+    background: var(--panel);
+    flex-wrap: wrap;
+  }
+
+  #nombre-archivo {
+    font-family: var(--mono);
+    font-size: 13px;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #marca-sucio {
+    color: var(--aviso);
+    font-size: 15px;
+    line-height: 1;
+    margin-left: -6px;
+  }
+  #estado { margin-right: auto; }
+
+  .separador {
+    width: 1px;
+    align-self: stretch;
+    background: var(--borde);
+    margin: 0 2px;
+  }
+
+  #zona-soltar {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: var(--fondo);
+    border: 2px dashed var(--sx-funcion);
+    color: var(--sx-funcion);
+    font-size: 14px;
+    z-index: 5;
+    pointer-events: none;
+  }
+  #zona-soltar.visible { display: flex; }
+  #envoltorio-editor { position: relative; min-height: 0; display: flex; }
+
+  button {
+    font: inherit;
+    font-size: 13px;
+    padding: 5px 11px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: var(--fondo);
+    color: var(--texto);
+    cursor: pointer;
+  }
+  button:hover { border-color: var(--tenue); }
+  button[disabled] { opacity: .45; cursor: not-allowed; }
+
+  select {
+    font: inherit;
+    font-size: 13px;
+    padding: 4px 7px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: var(--fondo);
+    color: var(--texto);
+    max-width: 210px;
+  }
+
+  .estado {
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+  .estado.ok { color: var(--ok); }
+  .estado.aviso { color: var(--aviso); }
+  .estado.error { color: var(--err); }
+
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    min-height: 0;
+  }
+  @media (max-width: 820px) {
+    main { grid-template-columns: 1fr; grid-template-rows: 1fr 220px; }
+  }
+
+  #envoltorio-editor { border-right: 1px solid var(--borde); }
+  #editor { flex: 1; min-height: 0; min-width: 0; overflow: auto; }
+  #editor .cm-editor { height: 100%; }
+  #editor .cm-editor.cm-focused { outline: none; }
+
+  aside {
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    min-height: 0;
+    background: var(--panel);
+  }
+  aside section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #panel-problemas { border-top: 1px solid var(--borde); }
+
+  #consola {
+    flex: 1;
+    overflow: auto;
+    margin: 0;
+    padding: 0 14px 10px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #consola .eco { color: var(--sx-funcion); }
+  #consola .aviso { color: var(--aviso); }
+  #consola .fin { color: var(--tenue); }
+  #consola .roto { color: var(--err); }
+
+  #fila-entrada {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 8px 14px;
+    border-top: 1px solid var(--borde);
+  }
+  #etiqueta-entrada { font-size: 12px; color: var(--tenue); white-space: nowrap; }
+  #campo-entrada {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 4px 7px;
+    border: 1px solid var(--borde);
+    border-radius: 5px;
+    background: var(--fondo);
+    color: var(--texto);
+  }
+  #campo-entrada:focus { outline: 2px solid var(--sx-funcion); outline-offset: -1px; }
+
+  aside h2 {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--tenue);
+    margin: 0;
+    padding: 12px 14px 8px;
+  }
+
+  #salida { overflow: auto; padding: 0 14px 14px; flex: 1; }
+
+  .vacio { color: var(--tenue); font-size: 13px; line-height: 1.6; }
+
+  .diag {
+    padding: 9px 11px;
+    margin-bottom: 8px;
+    border-radius: 6px;
+    border-left: 3px solid var(--err);
+    background: var(--fondo);
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .diag:hover { border-color: var(--tenue); }
+  .diag.advertencia { border-left-color: var(--aviso); }
+  .diag-cabecera { font-weight: 500; }
+  .diag-sugerencia { color: var(--tenue); margin-top: 4px; }
+
+  #enunciado {
+    padding: 0 14px 14px;
+    overflow: auto;
+    font-size: 13px;
+    line-height: 1.65;
+  }
+  #enunciado h3 { font-size: 14px; font-weight: 500; margin: 0 0 6px; }
+  #enunciado p { margin: 0 0 8px; white-space: pre-wrap; }
+  #enunciado pre {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    padding: 7px 9px;
+    margin: 0 0 8px;
+    overflow: auto;
+  }
+
+  .caso {
+    padding: 8px 11px;
+    margin-bottom: 7px;
+    border-radius: 6px;
+    border-left: 3px solid var(--borde);
+    background: var(--fondo);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .caso.bien { border-left-color: var(--ok); }
+  .caso.mal { border-left-color: var(--err); }
+  .caso.duda { border-left-color: var(--aviso); }
+  .caso-nombre { font-weight: 500; }
+  .caso-detalle { color: var(--tenue); margin-top: 3px; }
+  .caso-diff {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 2px 8px;
+    margin-top: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .caso-diff dt { color: var(--tenue); }
+  .caso-diff dd { margin: 0; white-space: pre-wrap; word-break: break-word; }
+  .marcador { color: var(--err); }
+
+  .resumen {
+    font-size: 13px;
+    font-weight: 500;
+    padding: 0 0 8px;
+  }
+  .resumen.bien { color: var(--ok); }
+  .resumen.mal { color: var(--err); }
+
+  footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--borde);
+    font-size: 12px;
+    color: var(--tenue);
+    background: var(--panel);
+  }
+  kbd {
+    font-family: var(--mono);
+    font-size: 11px;
+    border: 1px solid var(--borde);
+    border-radius: 4px;
+    padding: 1px 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span id="nombre-archivo" title="Archivo abierto">programa.psc</span>
+  <span id="marca-sucio" hidden title="Hay cambios sin guardar">●</span>
+  <span id="estado" class="estado">…</span>
+  <span class="separador"></span>
+  <button id="btn-abrir" title="Ctrl+O">Abrir</button>
+  <button id="btn-guardar" title="Ctrl+S">Guardar</button>
+  <button id="btn-guardar-como">Guardar como…</button>
+  <span class="separador"></span>
+  <button id="btn-formatear" title="Shift+Alt+F">Formatear</button>
+  <button id="btn-ejemplo">Ejemplo</button>
+  <button id="btn-limpiar">Nuevo</button>
+  <select id="selector-ejercicio" aria-label="Ejercicio">
+    <option value="">Sin ejercicio</option>
+  </select>
+  <button id="btn-ejecutar" title="Ctrl+Enter">Ejecutar</button>
+  <button id="btn-verificar" hidden title="Ctrl+Shift+Enter">Verificar</button>
+  <button id="btn-detener" hidden>Detener</button>
+</header>
+
+<main>
+  <div id="envoltorio-editor">
+    <div id="editor"></div>
+    <div id="zona-soltar">Soltá el archivo .psc para abrirlo</div>
+  </div>
+  <aside>
+    <section id="panel-consola">
+      <h2>Salida</h2>
+      <pre id="consola" aria-live="polite"></pre>
+      <div id="fila-entrada" hidden>
+        <label id="etiqueta-entrada" for="campo-entrada">Valor:</label>
+        <input id="campo-entrada" autocomplete="off" spellcheck="false">
+        <button id="btn-enviar">Enviar</button>
+      </div>
+    </section>
+    <section id="panel-problemas">
+      <h2 id="titulo-panel-inferior">Problemas</h2>
+      <div id="salida"></div>
+      <div id="enunciado" hidden></div>
+    </section>
+  </aside>
+</main>
+
+<footer>
+  <kbd>Ctrl</kbd>+<kbd>S</kbd> guarda · <kbd>Ctrl</kbd>+<kbd>O</kbd> abre · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> verifica · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> ejecuta · <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> formatea la sangría · <span id="nota-guardado"></span>
+</footer>
+
+<script type="module" src="./editor.js"></script>
+</body>
+</html>
