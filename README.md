@@ -318,12 +318,22 @@ ejercicio del repositorio aprueba todos sus casos.
 
 Nada indispensable. Ideas, en orden de valor para una clase:
 
-1. **Panel de variables** en vivo durante la ejecución paso a paso. El intérprete
-   ya emite la instantánea; falta la interfaz.
-2. **Varias sesiones con nombre** en el navegador, para máquinas compartidas.
-3. **Comparación por caso**, no solo global. Hoy un ejercicio usa un solo modo
+1. **Tabla de seguimiento (prueba de escritorio)**: acumular cada instantánea del
+   modo paso a paso en una tabla —una fila por sentencia, una columna por
+   variable— para ver la historia completa de la ejecución, no solo el estado
+   actual. Con un modo donde el alumno predice cada fila y la herramienta la
+   corrige contra la ejecución real. Reusa las mismas instantáneas que ya
+   alimentan el panel de variables.
+2. **Enlaces para compartir**: codificar el programa en el hash de la URL
+   (`#p=...`) para pasar una solución o un andamiaje sin servidor ni archivos —el
+   enlace mismo es el contenido, no se guarda nada en ningún lado. Para
+   ejercicios, o se referencia por nombre uno ya publicado, o se incrusta el
+   `.md` completo (enunciado y casos) para mandar uno nuevo en un solo enlace. El
+   código cargado no se ejecuta solo: espera a que el alumno le dé a Ejecutar.
+3. **Varias sesiones con nombre** en el navegador, para máquinas compartidas.
+4. **Comparación por caso**, no solo global. Hoy un ejercicio usa un solo modo
    para todos sus casos; si necesitás mezclar, hay que partirlo en dos archivos.
-4. **Registros** (`Definir p Como Registro`) y **archivos**, de la sección 14 de
+5. **Registros** (`Definir p Como Registro`) y **archivos**, de la sección 14 de
    la especificación.
 
 ## El editor web
@@ -342,6 +352,10 @@ Qué funciona hoy:
 
 - **Ejecuta programas** (`Ctrl+Enter`), con panel de salida, campo de entrada
   para `Leer` y botón Detener.
+- **Ejecución paso a paso** (botón «Paso a paso»): resalta la línea en curso y
+  muestra un panel de variables en vivo —las simples con su valor, los arreglos
+  celda por celda—, con avance manual, reproducción automática y control de
+  velocidad. Reusa la instantánea que ya emite el intérprete.
 - **Abre y guarda archivos** `.psc` (`Ctrl+O`, `Ctrl+S`), con arrastrar y soltar,
   marca de cambios sin guardar y aviso antes de cerrar la pestaña.
 - **Verifica ejercicios** (`Ctrl+Shift+Enter`): se elige uno del desplegable, se
