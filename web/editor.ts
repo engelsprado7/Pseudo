@@ -37,6 +37,7 @@ import {
   type ResultadoEjercicio,
 } from "../src/ejercicio.ts";
 import { iniciarNubeUI } from "./nube-ui.ts";
+import { icono } from "./iconos.ts";
 
 const EJEMPLO = `// Promedio de notas de un grupo, con clasificación.
 
@@ -1158,6 +1159,56 @@ if (sesionPrevia !== null) {
 }
 refrescarCabeceraArchivo();
 actualizarEstado(vista.state.doc.toString());
+
+// ------------------------------------------------------------------
+// Barra de herramientas
+// ------------------------------------------------------------------
+
+/**
+ * Pone el icono y envuelve el texto de cada botón en un `<span>`.
+ *
+ * El `<span>` es lo que permite esconder solo el texto en pantallas angostas y
+ * dejar el icono: sin él habría que duplicar el rótulo en un atributo. Se hace
+ * desde acá y no en el HTML para que exista un solo juego de iconos.
+ */
+for (const [selector, nombre] of [
+  ["#btn-abrir", "abrir"],
+  ["#btn-guardar", "guardar"],
+  ["#btn-guardar-como", "guardar"],
+  ["#btn-formatear", "formatear"],
+  ["#btn-ejemplo", "ejemplo"],
+  ["#btn-limpiar", "nuevo"],
+  ["#btn-ejecutar", "ejecutar"],
+  ["#btn-detener", "detener"],
+  ["#btn-paso", "pasos"],
+  ["#btn-verificar", "verificar"],
+  ["#menu-archivo > summary", "opciones"],
+] as const) {
+  const el = document.querySelector<HTMLElement>(selector);
+  if (el === null) continue;
+  const rotulo = el.textContent?.trim() ?? "";
+  el.textContent = "";
+  el.appendChild(icono(nombre, 14));
+  if (rotulo !== "") {
+    const span = document.createElement("span");
+    span.textContent = rotulo;
+    el.appendChild(span);
+  }
+}
+
+// El <details> abre y cierra solo, pero no se entera de los clics de afuera, y
+// un menú que queda abierto tapando la pantalla se siente roto.
+const menuArchivo = document.querySelector<HTMLDetailsElement>("#menu-archivo")!;
+document.addEventListener("click", (e) => {
+  if (menuArchivo.open && !menuArchivo.contains(e.target as Node)) menuArchivo.open = false;
+});
+menuArchivo.addEventListener("click", (e) => {
+  // Elegir una opción cierra el menú; el clic en el propio '⋯' no.
+  if ((e.target as HTMLElement).closest(".menu-panel") !== null) menuArchivo.open = false;
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && menuArchivo.open) menuArchivo.open = false;
+});
 
 // ------------------------------------------------------------------
 // Sala de clase (opcional)

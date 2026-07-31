@@ -64,6 +64,12 @@
 
   * { box-sizing: border-box; }
 
+  /* Cualquier 'display' que pongamos nosotros le gana al 'display: none' que el
+     navegador aplica a [hidden], y entonces ocultar deja de ocultar. Ya pasó dos
+     veces: el diálogo que no se cerraba y el botón Detener siempre visible.
+     Esta regla lo corta de raíz para todo el documento. */
+  [hidden] { display: none !important; }
+
   body {
     margin: 0;
     font-family: var(--sans);
@@ -77,34 +83,147 @@
   header {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 16px;
+    gap: 10px;
+    padding: 8px 14px;
     border-bottom: 1px solid var(--borde);
     background: var(--panel);
     flex-wrap: wrap;
   }
 
+  /* Identidad del archivo: lo primero que se lee, y lo único alineado a la
+     izquierda. El resto de la barra empuja hacia la derecha. */
+  #identidad { display: flex; align-items: center; gap: 8px; margin-right: auto; }
   #nombre-archivo {
     font-family: var(--mono);
     font-size: 13px;
+    font-weight: 500;
     max-width: 220px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  #marca-sucio {
-    color: var(--aviso);
-    font-size: 15px;
-    line-height: 1;
-    margin-left: -6px;
-  }
-  #estado { margin-right: auto; }
+  #marca-sucio { color: var(--aviso); font-size: 14px; line-height: 1; margin-left: -4px; }
 
-  .separador {
-    width: 1px;
-    align-self: stretch;
-    background: var(--borde);
-    margin: 0 2px;
+  /* Los grupos separan por función: archivo, ejercicio y ejecución. Se apoyan
+     en un fondo tenue en vez de líneas divisorias, que a esta densidad de
+     botones agregaban más ruido que estructura. */
+  .grupo {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 9px;
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+  }
+  .grupo-final { gap: 4px; }
+
+  button {
+    font: inherit;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--texto);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover { background: var(--panel); border-color: var(--borde); }
+  button:active { transform: translateY(1px); }
+  button[disabled] { opacity: .45; cursor: not-allowed; }
+  button:focus-visible { outline: 2px solid var(--sx-funcion); outline-offset: 1px; }
+
+  /* Un solo botón destacado en toda la barra. Si hubiera dos, no habría uno. */
+  button.primario {
+    background: var(--sx-funcion);
+    border-color: var(--sx-funcion);
+    color: #fff;
+    font-weight: 500;
+  }
+  button.primario:hover { filter: brightness(1.08); border-color: var(--sx-funcion); }
+  button.peligro {
+    background: var(--err);
+    border-color: var(--err);
+    color: #fff;
+    font-weight: 500;
+  }
+  button.peligro:hover { filter: brightness(1.08); border-color: var(--err); }
+
+  select {
+    font: inherit;
+    font-size: 13px;
+    padding: 5px 8px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--texto);
+    max-width: 190px;
+    cursor: pointer;
+  }
+  select:hover { background: var(--panel); border-color: var(--borde); }
+
+  /* Menú de acciones ocasionales. <details> abre y cierra sin JavaScript; lo
+     único que hace falta a mano es cerrarlo al hacer clic afuera. */
+  .menu { position: relative; }
+  .menu > summary {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 8px;
+    border-radius: 7px;
+    color: var(--tenue);
+    cursor: pointer;
+    list-style: none;
+  }
+  .menu > summary::-webkit-details-marker { display: none; }
+  .menu > summary:hover { background: var(--panel); color: var(--texto); }
+  .menu[open] > summary { background: var(--panel); color: var(--texto); }
+  .menu-panel {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 20;
+    min-width: 190px;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 5px;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    background: var(--panel);
+    box-shadow: 0 10px 28px rgb(0 0 0 / .16);
+  }
+  .menu-panel button {
+    justify-content: flex-start;
+    width: 100%;
+    padding: 7px 9px;
+  }
+
+  .estado {
+    font-size: 12px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+  }
+  .estado.ok { color: var(--ok); }
+  .estado.aviso { color: var(--aviso); }
+  .estado.error { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, var(--borde)); }
+
+  /* En pantallas angostas los botones secundarios se quedan con el icono: el
+     texto es lo primero que sobra cuando falta ancho. */
+  @media (max-width: 1100px) {
+    .grupo button:not(.primario):not(.peligro) span { display: none; }
+    .grupo button:not(.primario):not(.peligro) { padding: 6px 8px; }
+    /* El menú conserva sus rótulos: una lista de iconos sueltos no se entiende.
+       Hace falta repetir los :not() para ganarle en especificidad a la regla de
+       arriba, que si no esconde también estos. */
+    .menu-panel button:not(.primario):not(.peligro) span { display: inline; }
+    .menu-panel button:not(.primario):not(.peligro) { padding: 7px 9px; }
   }
 
   #zona-soltar {
@@ -706,25 +825,42 @@
 <body>
 
 <header>
-  <span id="nombre-archivo" title="Archivo abierto">programa.psc</span>
-  <span id="marca-sucio" hidden title="Hay cambios sin guardar">●</span>
-  <span id="estado" class="estado">…</span>
-  <span class="separador"></span>
-  <button type="button" id="btn-abrir" title="Ctrl+O">Abrir</button>
-  <button type="button" id="btn-guardar" title="Ctrl+S">Guardar</button>
-  <button type="button" id="btn-guardar-como">Guardar como…</button>
-  <span class="separador"></span>
-  <button type="button" id="btn-formatear" title="Shift+Alt+F">Formatear</button>
-  <button type="button" id="btn-ejemplo">Ejemplo</button>
-  <button type="button" id="btn-limpiar">Nuevo</button>
-  <select id="selector-ejercicio" aria-label="Ejercicio">
-    <option value="">Sin ejercicio</option>
-  </select>
-  <button type="button" id="btn-sala" hidden title="Sala de clase: publicar y cargar ejercicios">Sala</button>
-  <button type="button" id="btn-ejecutar" title="Ctrl+Enter">Ejecutar</button>
-  <button type="button" id="btn-paso" title="Ejecutar mostrando cada paso y las variables">Paso a paso</button>
-  <button type="button" id="btn-verificar" hidden title="Ctrl+Shift+Enter">Verificar</button>
-  <button type="button" id="btn-detener" hidden>Detener</button>
+  <div id="identidad">
+    <span id="nombre-archivo" title="Archivo abierto">programa.psc</span>
+    <span id="marca-sucio" hidden title="Hay cambios sin guardar">●</span>
+    <span id="estado" class="estado">…</span>
+  </div>
+
+  <!-- Archivo. Lo que se usa seguido queda a la vista; el resto, en el menú. -->
+  <div class="grupo">
+    <button type="button" id="btn-abrir" title="Abrir un archivo (Ctrl+O)">Abrir</button>
+    <button type="button" id="btn-guardar" title="Guardar (Ctrl+S)">Guardar</button>
+    <details class="menu" id="menu-archivo">
+      <summary title="Más acciones" aria-label="Más acciones"></summary>
+      <div class="menu-panel">
+        <button type="button" id="btn-guardar-como">Guardar como…</button>
+        <button type="button" id="btn-formatear" title="Shift+Alt+F">Ordenar la sangría</button>
+        <button type="button" id="btn-ejemplo">Cargar el ejemplo</button>
+        <button type="button" id="btn-limpiar">Programa nuevo</button>
+      </div>
+    </details>
+  </div>
+
+  <!-- Ejercicio -->
+  <div class="grupo">
+    <select id="selector-ejercicio" aria-label="Ejercicio">
+      <option value="">Sin ejercicio</option>
+    </select>
+    <button type="button" id="btn-sala" hidden title="Sala de clase: publicar y cargar ejercicios">Sala</button>
+  </div>
+
+  <!-- Ejecutar es lo que más se aprieta: va al final y es el único destacado. -->
+  <div class="grupo grupo-final">
+    <button type="button" id="btn-paso" title="Ejecutar mostrando cada paso y las variables">Paso a paso</button>
+    <button type="button" id="btn-verificar" hidden title="Corregir contra los casos (Ctrl+Shift+Enter)">Verificar</button>
+    <button type="button" id="btn-ejecutar" class="primario" title="Ejecutar (Ctrl+Enter)">Ejecutar</button>
+    <button type="button" id="btn-detener" hidden class="peligro">Detener</button>
+  </div>
 </header>
 
 <main>

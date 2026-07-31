@@ -24,6 +24,18 @@ const TRAZOS: Record<string, string> = {
   salir: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   salas: '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/>',
   verificar: '<path d="M20 6 9 17l-5-5"/>',
+
+  // Barra de herramientas
+  abrir: '<path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2Z"/>',
+  guardar:
+    '<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/>',
+  formatear: '<path d="M4 6h16"/><path d="M8 12h12"/><path d="M8 18h9"/>',
+  ejecutar: '<path d="m6 3 14 9-14 9Z"/>',
+  detener: '<rect x="5" y="5" width="14" height="14" rx="2"/>',
+  pasos: '<path d="m5 4 10 8-10 8Z"/><path d="M19 5v14"/>',
+  nuevo: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M12 12v6"/><path d="M9 15h6"/>',
+  ejemplo: '<path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5Z"/><path d="M8 7h7"/><path d="M8 11h7"/>',
+  opciones: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
 };
 
 export type NombreIcono = keyof typeof TRAZOS | string;
