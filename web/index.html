@@ -766,6 +766,43 @@
   }
   .feed-accion.destacada { color: var(--sx-funcion); font-weight: 500; }
 
+  /* --- Diagrama de flujo --- */
+  #dialogo-diagrama[open] { display: flex; flex-direction: column; }
+  #dialogo-diagrama {
+    width: min(1000px, 96vw);
+    max-height: 92vh;
+    padding: 0;
+    border: none;
+    border-radius: 14px;
+    background: var(--panel);
+    color: var(--texto);
+    font-family: var(--sans);
+    box-shadow: 0 18px 48px rgb(0 0 0 / .22);
+  }
+  #dialogo-diagrama::backdrop { background: rgb(20 20 18 / .45); }
+  #diagrama-cuerpo {
+    overflow: auto;
+    padding: 16px 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+  }
+  #diagrama-cuerpo svg { max-width: 100%; height: auto; }
+
+  /* El SVG se pinta con variables, así sigue el tema claro/oscuro sin generar
+     dos versiones del dibujo. */
+  #diagrama-cuerpo, #dialogo-diagrama {
+    --dg-relleno: var(--panel);
+    --dg-es: color-mix(in srgb, var(--sx-funcion) 12%, var(--panel));
+    --dg-decision: color-mix(in srgb, var(--aviso) 16%, var(--panel));
+    --dg-borde: var(--tenue);
+    --dg-linea: var(--tenue);
+    --dg-texto: var(--texto);
+    --dg-tenue: var(--tenue);
+    --dg-fuente: var(--sans);
+  }
+
   /* --- Movimiento --- */
   /* Sutil y corto: la animación tiene que hacer legible de dónde salió una
      cosa, no hacerse notar. Todo por debajo de 200 ms. */
@@ -855,6 +892,7 @@
     <select id="selector-ejercicio" aria-label="Ejercicio">
       <option value="">Sin ejercicio</option>
     </select>
+    <button type="button" id="btn-diagrama" title="Ver el diagrama de flujo del programa">Diagrama</button>
     <button type="button" id="btn-sala" hidden title="Sala de clase: publicar y cargar ejercicios">Sala</button>
   </div>
 
@@ -954,6 +992,17 @@
     <span id="sala-usuario"></span>
     <button type="button" id="btn-salir-sesion" class="sutil">Cerrar sesión</button>
   </div>
+</dialog>
+
+<dialog id="dialogo-diagrama">
+  <div id="sala-cabecera">
+    <h2>Diagrama de flujo</h2>
+    <div class="sala-botones" style="margin: 0">
+      <button type="button" id="btn-bajar-diagrama">Descargar SVG</button>
+      <button type="button" id="btn-cerrar-diagrama" title="Cerrar"></button>
+    </div>
+  </div>
+  <div id="diagrama-cuerpo"></div>
 </dialog>
 
 <dialog id="dialogo-ejercicio">

@@ -38,6 +38,9 @@ import {
 } from "../src/ejercicio.ts";
 import { iniciarNubeUI } from "./nube-ui.ts";
 import { icono } from "./iconos.ts";
+import { tokenizar } from "../src/lexer.ts";
+import { parsear } from "../src/parser.ts";
+import { diagramasDe } from "../src/diagrama.ts";
 
 /** Punto de partida de un programa en blanco. El cursor va en la línea de adentro. */
 const ESQUELETO = "Inicio\n    \nFin\n";
@@ -1170,6 +1173,72 @@ refrescarCabeceraArchivo();
 actualizarEstado(vista.state.doc.toString());
 
 // ------------------------------------------------------------------
+// Diagrama de flujo
+// ------------------------------------------------------------------
+
+const dialogoDiagrama = document.querySelector<HTMLDialogElement>("#dialogo-diagrama")!;
+const cuerpoDiagrama = document.querySelector<HTMLElement>("#diagrama-cuerpo")!;
+
+/**
+ * Dibuja el diagrama del programa que hay en el editor.
+ *
+ * Necesita el árbol, así que exige que la sintaxis esté bien: no se puede
+ * diagramar lo que no se entiende. Los errores de tipos, en cambio, no
+ * molestan —un diagrama de un programa con una variable sin declarar sigue
+ * siendo un diagrama correcto—, y por eso se parte del parser y no de
+ * `compilar`, que además exige el chequeo semántico.
+ */
+function mostrarDiagrama(): void {
+  const fuente = vista.state.doc.toString();
+  const { tokens, errores: lexicos } = tokenizar(fuente);
+  const { programa, errores: sintacticos } = parsear(tokens);
+  const rotos = [...lexicos, ...sintacticos];
+
+  cuerpoDiagrama.textContent = "";
+
+  if (rotos.length > 0) {
+    const aviso = document.createElement("p");
+    aviso.className = "vacio";
+    aviso.textContent =
+      `No puedo dibujar el diagrama todavía: hay ${rotos.length} ` +
+      `${rotos.length === 1 ? "error de sintaxis" : "errores de sintaxis"}. ` +
+      `Corregilos y volvé a intentar.`;
+    cuerpoDiagrama.appendChild(aviso);
+    dialogoDiagrama.showModal();
+    return;
+  }
+
+  for (const d of diagramasDe(programa)) {
+    const caja = document.createElement("div");
+    // El SVG viene de nuestro propio generador y escapa el texto del usuario;
+    // aun así se inserta en un contenedor propio para no tocar el resto.
+    caja.innerHTML = d.svg;
+    cuerpoDiagrama.appendChild(caja);
+  }
+  dialogoDiagrama.showModal();
+}
+
+function descargarDiagrama(): void {
+  const svg = cuerpoDiagrama.querySelector("svg");
+  if (svg === null) return;
+  const blob = new Blob([svg.outerHTML], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombreArchivo.replace(/\.psc$/i, "") + "-diagrama.svg";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.querySelector<HTMLButtonElement>("#btn-diagrama")!.addEventListener("click", mostrarDiagrama);
+document
+  .querySelector<HTMLButtonElement>("#btn-cerrar-diagrama")!
+  .addEventListener("click", () => dialogoDiagrama.close());
+document
+  .querySelector<HTMLButtonElement>("#btn-bajar-diagrama")!
+  .addEventListener("click", descargarDiagrama);
+
+// ------------------------------------------------------------------
 // Barra de herramientas
 // ------------------------------------------------------------------
 
@@ -1191,6 +1260,9 @@ for (const [selector, nombre] of [
   ["#btn-detener", "detener"],
   ["#btn-paso", "pasos"],
   ["#btn-verificar", "verificar"],
+  ["#btn-diagrama", "diagrama"],
+  ["#btn-cerrar-diagrama", "cerrar"],
+  ["#btn-bajar-diagrama", "bajar"],
   ["#menu-archivo > summary", "opciones"],
 ] as const) {
   const el = document.querySelector<HTMLElement>(selector);
