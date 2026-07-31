@@ -255,7 +255,43 @@ function refrescarCabeceraArchivo(): void {
  * guarda también la referencia, así al volver la marca de cambios sin guardar
  * sigue siendo correcta.
  */
+/**
+ * Clave del ejercicio abierto, para recordar el trabajo de cada uno por separado.
+ *
+ * El editor tiene un solo documento, así que pasar de un ejercicio a otro pisa
+ * lo que había. Avisar antes no alcanza: aunque confirmes, el trabajo se pierde
+ * igual y no hay dónde recuperarlo. Guardando por ejercicio, mirar otro y
+ * volver deja todo como estaba, que es lo que cualquiera espera.
+ *
+ * Los de la sala se identifican por su id y los locales por su archivo; ambos
+ * son estables entre sesiones.
+ */
+let claveDelEjercicio: string | null = null;
+
+function claveTrabajo(id: string): string {
+  return `pseudo:trabajo:${id}`;
+}
+
+function guardarTrabajo(): void {
+  if (claveDelEjercicio === null) return;
+  try {
+    localStorage.setItem(claveTrabajo(claveDelEjercicio), vista.state.doc.toString());
+  } catch {
+    // Almacenamiento lleno: se pierde el borrador, no el editor.
+  }
+}
+
+/** Lo que el alumno tenía escrito en ese ejercicio, si alguna vez lo tocó. */
+function trabajoGuardado(id: string): string | null {
+  try {
+    return localStorage.getItem(claveTrabajo(id));
+  } catch {
+    return null;
+  }
+}
+
 function recordarSesion(): void {
+  guardarTrabajo();
   const sesion: Sesion = {
     nombre: nombreArchivo,
     contenido: vista.state.doc.toString(),
@@ -954,6 +990,10 @@ async function mostrarEjercicio(archivo: string): Promise<boolean> {
 
 /** Vuelve al estado "sin ejercicio": limpia el selector, el enunciado y Verificar. */
 function deseleccionarEjercicio(): void {
+  // Se guarda antes de soltar la clave: cerrar un ejercicio no puede perder lo
+  // que había escrito en él.
+  guardarTrabajo();
+  claveDelEjercicio = null;
   idEjercicioRemoto = null;
   selector.value = "";
   ejercicioActual = null;
@@ -990,12 +1030,20 @@ selector.addEventListener("change", () => {
 
     const solucion = await cargarSolucion(archivo);
     if (solucion.ok) {
-      // La solución cargada pasa a ser el contenido base: se desliga de
-      // cualquier archivo abierto y recién cuenta como "sin guardar" al editarla.
+      // Lo tuyo gana sobre la solución de referencia: si ya trabajaste en este
+      // ejercicio, volver no puede borrarte lo escrito.
+      const previo = trabajoGuardado(archivo);
+      const contenido = previo ?? solucion.codigo;
+
+      guardarTrabajo();
+      // El contenido cargado pasa a ser la base: se desliga de cualquier
+      // archivo abierto y recién cuenta como "sin guardar" al editarlo.
       nombreArchivo = archivo.replace(/\.md$/i, ".psc");
       manejadorArchivo = undefined;
-      referenciaGuardada = solucion.codigo;
-      reemplazarContenido(solucion.codigo);
+      claveDelEjercicio = archivo;
+      referenciaGuardada = contenido;
+      reemplazarContenido(contenido);
+      if (previo !== null) anexar("Se recuperó lo que tenías escrito acá.\n", "fin");
     } else {
       anexar(solucion.mensaje + "\n", "roto");
     }
@@ -1356,9 +1404,18 @@ void iniciarNubeUI({
     // adentro. Parecía que abrir no había hecho nada. Sin código lo que
     // corresponde es una hoja limpia para resolverlo, no la solución de un
     // ejercicio distinto.
-    const contenido = codigo ?? ESQUELETO;
+    // Si ya trabajaste en este ejercicio, se recupera tu versión; si es la
+    // primera vez, el código que trae (o una hoja limpia).
+    const clave = idRemoto ?? `md:${titulo}`;
+    const previo = trabajoGuardado(clave);
+    const contenido = previo ?? codigo ?? ESQUELETO;
+
+    // Antes de pisar el editor, se guarda lo del ejercicio que estaba abierto.
+    guardarTrabajo();
+
     nombreArchivo = conExtension(titulo);
     manejadorArchivo = undefined;
+    claveDelEjercicio = clave;
     reemplazarContenido(contenido);
     referenciaGuardada = contenido;
     refrescarCabeceraArchivo();
@@ -1371,9 +1428,11 @@ void iniciarNubeUI({
     ajustarPanelInferior();
     consola.textContent = "";
     anexar(
-      codigo === null
-        ? `Se abrió "${leido.ejercicio.titulo}". Escribí tu solución acá.\n`
-        : `Se abrió "${leido.ejercicio.titulo}" con el código que trae.\n`,
+      previo !== null
+        ? `Se abrió "${leido.ejercicio.titulo}" con lo que tenías escrito.\n`
+        : codigo === null
+          ? `Se abrió "${leido.ejercicio.titulo}". Escribí tu solución acá.\n`
+          : `Se abrió "${leido.ejercicio.titulo}" con el código que trae.\n`,
       "fin",
     );
     return true;
@@ -1402,6 +1461,8 @@ void iniciarNubeUI({
       return null;
     }
   },
+
+  ejercicioDeLaSala: () => idEjercicioRemoto,
 
   probarConEntrada(entrada) {
     const compilado = compilar(vista.state.doc.toString());

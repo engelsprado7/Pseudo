@@ -286,7 +286,7 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
   btnPublicar.hidden = editando !== undefined;
   btnPublicar.disabled = opciones.publicarEnSala === null;
   btnPublicar.title =
-    opciones.publicarEnSala === null ? "Primero entrá a una sala" : "Publicar en la sala actual";
+    opciones.publicarEnSala === null ? "Primero entrá a una sala" : "Darlo a la clase para que lo resuelvan";
 
   // Los oyentes se reemplazan en cada apertura para no acumularlos.
   btnAgregar.onclick = () => agregarCaso();

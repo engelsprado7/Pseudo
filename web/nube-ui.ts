@@ -67,6 +67,8 @@ export interface Enlace {
     contenido: string;
     codigo: string;
   } | null>;
+  /** Id del ejercicio de la sala que está abierto, o `null`. */
+  ejercicioDeLaSala: () => string | null;
   /** Corre el código del editor con una entrada y devuelve lo que escribió. */
   probarConEntrada: (
     entrada: string[],
@@ -220,7 +222,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       // Publicar mueve el borrador a la sala; no crea una copia.
       if (salaActual !== null) {
         acciones.appendChild(
-          accion("Publicar", "Ponerlo en la sala para que lo vean", () => void publicarItem(item), "publicar", "destacada"),
+          accion("Asignar", "Darlo a la clase para que lo resuelvan", () => void publicarItem(item), "publicar", "destacada"),
         );
       }
       acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item), "editar"));
@@ -229,13 +231,13 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       if (esMio) {
         acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item), "editar"));
         acciones.appendChild(
-          accion("Despublicar", "Sacarlo de la sala y volverlo borrador", () => void despublicarItem(item), "bajar"),
+          accion("Retirar", "Sacarlo de la clase y volverlo borrador", () => void despublicarItem(item), "bajar"),
         );
       } else {
         acciones.appendChild(accion("Copiar", "Guardar una copia en mis borradores", () => void copiarItem(item), "copiar"));
       }
     } else if (esMio) {
-      acciones.appendChild(accion("Borrar", "Quitar mi solución de la sala", () => void borrarItem(item), "borrar", "peligro"));
+      acciones.appendChild(accion("Borrar", "Retirar mi entrega", () => void borrarItem(item), "borrar", "peligro"));
     }
 
     if (acciones.childElementCount > 0) fila.appendChild(acciones);
@@ -255,8 +257,8 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
 
     const grupos: Array<{ tipo: ItemFeed["tipo"]; titulo: string; vacio: string }> = [
       { tipo: "personal", titulo: "Mis borradores", vacio: "Todavía no escribiste ninguno." },
-      { tipo: "ejercicio", titulo: "Ejercicios de la sala", vacio: "Nadie publicó ejercicios todavía." },
-      { tipo: "programa", titulo: "Soluciones compartidas", vacio: "Nadie compartió su solución todavía." },
+      { tipo: "ejercicio", titulo: "Ejercicios asignados", vacio: "Todavía no hay ejercicios para resolver." },
+      { tipo: "programa", titulo: "Entregas de la clase", vacio: "Todavía nadie entregó una solución." },
     ];
 
     for (const grupo of grupos) {
@@ -533,7 +535,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     if (salaActual === null) return;
     const r = await publicarBorrador(item.id, salaActual);
     enlace.avisar(
-      r.ok ? `"${item.titulo}" ya está en la sala.\n` : r.mensaje + "\n",
+      r.ok ? `"${item.titulo}" ya está asignado a la clase.\n` : r.mensaje + "\n",
       r.ok ? "fin" : "roto",
     );
     if (r.ok) await refrescarFeed();
@@ -676,7 +678,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
           : async (titulo, contenido, codigo) => {
               const r = await publicarEjercicio(salaActual!, titulo, contenido, codigo);
               if (!r.ok) return r.mensaje;
-              enlace.avisar(`Se publicó "${titulo}" en la sala.\n`, "fin");
+              enlace.avisar(`Se asignó "${titulo}" a la clase.\n`, "fin");
               return null;
             },
 
@@ -745,9 +747,16 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
         return;
       }
       const nombre = enlace.nombreActual();
-      const r = await compartirPrograma(salaActual, nombre, enlace.codigoActual());
+      // Si hay un ejercicio de la sala abierto, la solución queda atada a él:
+      // es lo que permite reemplazar la anterior en vez de duplicarla.
+      const r = await compartirPrograma(
+        salaActual,
+        nombre,
+        enlace.codigoActual(),
+        enlace.ejercicioDeLaSala(),
+      );
       enlace.avisar(
-        r.ok ? `Compartiste "${nombre}" en la sala.\n` : r.mensaje + "\n",
+        r.ok ? `Entregaste tu solución de "${nombre}".\n` : r.mensaje + "\n",
         r.ok ? "fin" : "roto",
       );
       if (r.ok) await refrescarFeed();

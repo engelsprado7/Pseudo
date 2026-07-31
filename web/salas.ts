@@ -365,25 +365,30 @@ export async function publicarEjercicio(
   return { ok: true, dato: (data as { id: string }).id };
 }
 
+/**
+ * Comparte el código del editor como solución.
+ *
+ * Reemplaza la anterior del mismo autor para el mismo ejercicio en vez de
+ * agregar otra: quien comparte, corrige y vuelve a compartir dejaba varias
+ * versiones suyas y el docente no sabía cuál mirar.
+ */
 export async function compartirPrograma(
   sala: string,
   titulo: string,
   codigo: string,
+  ejercicio: string | null = null,
 ): Promise<Resultado<string>> {
   const c = await cliente();
   if (c === null) return { ok: false, mensaje: SIN_NUBE };
 
-  const { data: sesion } = await c.auth.getUser();
-  if (sesion.user === null) return { ok: false, mensaje: "Hay que iniciar sesión." };
-
-  const { data, error } = await c
-    .from("programas")
-    .insert({ sala, autor: sesion.user.id, titulo, codigo })
-    .select("id")
-    .single();
-
+  const { data, error } = await c.rpc("compartir_solucion", {
+    p_sala: sala,
+    p_ejercicio: ejercicio,
+    p_titulo: titulo,
+    p_codigo: codigo,
+  });
   if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
-  return { ok: true, dato: (data as { id: string }).id };
+  return { ok: true, dato: data as string };
 }
 
 export interface EjercicioPublicado {
