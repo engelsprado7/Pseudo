@@ -655,22 +655,13 @@
     from { opacity: 0; }
     to   { opacity: 1; }
   }
-  @keyframes aparecer-fila {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: none; }
-  }
-
   dialog[open] { animation: aparecer-dialogo .18s cubic-bezier(.2, .8, .3, 1); }
   dialog[open]::backdrop { animation: aparecer-fondo .18s ease; }
 
-  /* El retraso escalonado hace que la lista se lea de arriba abajo en vez de
-     aparecer de golpe. Se corta a los seis: más que eso ya es esperar. */
-  .feed-fila { animation: aparecer-fila .16s ease both; }
-  .feed-fila:nth-child(2) { animation-delay: .02s; }
-  .feed-fila:nth-child(3) { animation-delay: .04s; }
-  .feed-fila:nth-child(4) { animation-delay: .06s; }
-  .feed-fila:nth-child(5) { animation-delay: .08s; }
-  .feed-fila:nth-child(n+6) { animation-delay: .10s; }
+  /* Las filas no se animan a propósito. El feed se vuelve a dibujar cada vez
+     que se abre el diálogo y con cada evento de tiempo real, así que la
+     animación se reproducía de nuevo en cada redibujo: se veía como un
+     parpadeo. Una animación que se repite sin que pase nada nuevo estorba. */
 
   button {
     transition: background-color .12s ease, border-color .12s ease, color .12s ease;
