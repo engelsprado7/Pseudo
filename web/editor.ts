@@ -34,6 +34,7 @@ import {
   verificarSolucion,
   type Ejercicio,
   type ResultadoCaso,
+  type ResultadoEjercicio,
 } from "../src/ejercicio.ts";
 import { iniciarNubeUI } from "./nube-ui.ts";
 
@@ -164,7 +165,21 @@ function actualizarEstado(fuente: string): void {
 
   salida.innerHTML = "";
   if (diags.length === 0) {
-    salida.innerHTML = `<p class="vacio">Sin problemas. Presioná Ejecutar.</p>`;
+    // Sin errores, el panel muestra la corrección de la última verificación si
+    // la hay. Es lo que el alumno vino a buscar después de apretar Verificar.
+    if (ultimaVerificacion !== null) {
+      pintarVerificacion(salida, ultimaVerificacion);
+      return;
+    }
+    const vacio = document.createElement("p");
+    vacio.className = "vacio";
+    // El texto tiene que nombrar el botón que corresponde: con un ejercicio de
+    // casos abierto, mandar a Ejecutar es mandar al lugar equivocado.
+    vacio.textContent =
+      ejercicioActual !== null && ejercicioActual.casos.length > 0
+        ? "Sin problemas. Presioná Verificar para corregir tu solución."
+        : "Sin problemas. Presioná Ejecutar.";
+    salida.appendChild(vacio);
     return;
   }
 
@@ -359,6 +374,8 @@ const vista = new EditorView({
       EditorView.updateListener.of((u) => {
         if (!u.docChanged) return;
         const fuente = u.state.doc.toString();
+        // La corrección era de otro código: mostrarla ahora sería mentir.
+        ultimaVerificacion = null;
         actualizarEstado(fuente);
         ajustarPanelInferior();
         refrescarCabeceraArchivo();
@@ -791,11 +808,12 @@ function verificar(): void {
   if (ejercicioActual === null || visualizador !== null || corriendo !== null) return;
 
   const compilado = compilar(vista.state.doc.toString());
-  consola.textContent = "";
 
   if (!compilado.ok) {
-    const n = compilado.diagnosticos.length;
-    anexar(`Antes de verificar hay que corregir ${n} ${n === 1 ? "error" : "errores"}.\n`, "roto");
+    // Los errores ya están listados en la pestaña Problemas; llevarlo ahí dice
+    // más que un mensaje contando cuántos son.
+    ultimaVerificacion = null;
+    pestanaPanel = "problemas";
     ajustarPanelInferior();
     return;
   }
@@ -804,12 +822,26 @@ function verificar(): void {
     limitePasos: 500_000,
   });
 
+  // El resultado se guarda y se dibuja en la pestaña Problemas, que es donde el
+  // alumno está mirando: leyó la consigna, escribió, y ahora quiere saber qué
+  // falló. Mandarlo al panel de salida de arriba lo obligaba a buscarlo en otro
+  // lado, justo en el momento de mayor frustración.
+  ultimaVerificacion = resultado;
+  pestanaPanel = "problemas";
+  actualizarEstado(vista.state.doc.toString());
+  ajustarPanelInferior();
+}
+
+/** Resultado de la última verificación, mientras el código no cambie. */
+let ultimaVerificacion: ResultadoEjercicio | null = null;
+
+function pintarVerificacion(destino: HTMLElement, resultado: ResultadoEjercicio): void {
   const resumen = document.createElement("div");
   resumen.className = `resumen ${resultado.aprobado ? "bien" : "mal"}`;
   resumen.textContent = resultado.aprobado
     ? `Aprobado: ${resultado.aprobados} de ${resultado.total} casos.`
     : `${resultado.aprobados} de ${resultado.total} casos.`;
-  consola.appendChild(resumen);
+  destino.appendChild(resumen);
 
   for (const caso of resultado.casos) {
     const tarjeta = document.createElement("div");
@@ -864,10 +896,8 @@ function verificar(): void {
       }
     }
 
-    consola.appendChild(tarjeta);
+    destino.appendChild(tarjeta);
   }
-
-  consola.scrollTop = 0;
 }
 
 /** Ejercicio elegido en el selector, para poder revertirlo si se cancela. */
