@@ -91,6 +91,7 @@ bin/
   correr.ts       CLI: ejecuta un programa
   verificar.ts    CLI: verifica soluciones contra ejercicios
   indice.ts       Regenera ejercicios/indice.json
+  limpiar.ts      Borra sitio/ antes de reconstruirlo
   sitio.ts        Copia index.html y los ejercicios a sitio/
   servir.ts       Servidor estático, sin dependencias
 test/
@@ -104,8 +105,16 @@ web/
   formato.ts      Motor de sangría, sección 15 de la especificación
   lenguaje.ts     Resaltado y sangría para CodeMirror
   editor.ts       Interfaz del editor
+  nube.ts         Cliente de Supabase, opcional y de carga diferida
+  auth.ts         Sesión con Google y Microsoft
+  salas.ts        Salas de clase: publicar, listar, tiempo real
+  nube-ui.ts      Diálogo de la sala
+  nube.json       URL y clave publishable (pública; sin ella no hay nube)
   index.html      Página
+supabase/
+  esquema.sql     Tablas, RLS y funciones. Se pega en el SQL Editor.
 sitio/            Generado por `npm run build`. Esto es lo que se despliega.
+                  No se versiona: lo reconstruye el workflow.
 ejemplos/
   area.psc              Programa válido corto
   promedio.psc          Programa válido completo

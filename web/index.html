@@ -236,6 +236,27 @@
     padding: 12px 14px 8px;
   }
 
+  #cabecera-panel { display: flex; align-items: center; }
+  #pestanas-panel { display: flex; gap: 4px; padding: 10px 14px 6px; }
+  #pestanas-panel[hidden] { display: none; }
+  .pestana {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    padding: 3px 9px;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--tenue);
+  }
+  .pestana:hover { color: var(--texto); border-color: var(--borde); }
+  .pestana[aria-selected="true"] {
+    background: var(--fondo);
+    border-color: var(--borde);
+    color: var(--texto);
+  }
+  .pestana .cuenta { color: var(--err); }
+
   #salida { overflow: auto; padding: 0 14px 14px; flex: 1; }
 
   .vacio { color: var(--tenue); font-size: 13px; line-height: 1.6; }
@@ -351,6 +372,79 @@
   .resumen.bien { color: var(--ok); }
   .resumen.mal { color: var(--err); }
 
+  /* Sala de clase */
+  #dialogo-sala {
+    width: min(560px, 92vw);
+    max-height: 86vh;
+    overflow: auto;
+    padding: 16px 18px 18px;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--texto);
+    font-family: var(--sans);
+  }
+  #dialogo-sala::backdrop { background: rgb(0 0 0 / .38); }
+  #sala-cabecera {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  #dialogo-sala h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  #dialogo-sala h3 {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--tenue);
+    margin: 16px 0 8px;
+  }
+  #btn-cerrar-sala { padding: 2px 8px; line-height: 1.2; }
+
+  .sala-fila { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .sala-fila label { font-size: 12px; color: var(--tenue); }
+  .sala-fila input, .sala-fila select {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 13px;
+    padding: 4px 8px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: var(--fondo);
+    color: var(--texto);
+  }
+  .sala-botones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .sala-etiqueta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--tenue);
+    white-space: nowrap;
+  }
+
+  #sala-feed { display: flex; flex-direction: column; gap: 6px; }
+  .feed-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--borde);
+    border-left-width: 3px;
+    border-radius: 6px;
+    background: var(--fondo);
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+    width: 100%;
+  }
+  .feed-item:hover { border-color: var(--tenue); }
+  .feed-item.ejercicio { border-left-color: var(--sx-funcion); }
+  .feed-item.programa { border-left-color: var(--ok); }
+  .feed-titulo { font-weight: 500; }
+  .feed-autor { color: var(--tenue); font-size: 12px; margin-left: auto; white-space: nowrap; }
+
   footer {
     padding: 8px 16px;
     border-top: 1px solid var(--borde);
@@ -384,6 +478,7 @@
   <select id="selector-ejercicio" aria-label="Ejercicio">
     <option value="">Sin ejercicio</option>
   </select>
+  <button id="btn-sala" hidden title="Sala de clase: publicar y cargar ejercicios">Sala</button>
   <button id="btn-ejecutar" title="Ctrl+Enter">Ejecutar</button>
   <button id="btn-paso" title="Ejecutar mostrando cada paso y las variables">Paso a paso</button>
   <button id="btn-verificar" hidden title="Ctrl+Shift+Enter">Verificar</button>
@@ -406,7 +501,13 @@
       </div>
     </section>
     <section id="panel-problemas">
-      <h2 id="titulo-panel-inferior">Problemas</h2>
+      <div id="cabecera-panel">
+        <h2 id="titulo-panel-inferior">Problemas</h2>
+        <div id="pestanas-panel" hidden role="tablist">
+          <button id="pestana-ejercicio" class="pestana" role="tab">Ejercicio</button>
+          <button id="pestana-problemas" class="pestana" role="tab">Problemas</button>
+        </div>
+      </div>
       <div id="barra-paso" hidden>
         <button id="btn-paso-siguiente" title="Ejecutar la siguiente sentencia">Siguiente ▸</button>
         <button id="btn-paso-play" title="Avanzar solo">Reproducir</button>
@@ -420,6 +521,49 @@
     </section>
   </aside>
 </main>
+
+<dialog id="dialogo-sala">
+  <div id="sala-cabecera">
+    <h2>Sala de clase</h2>
+    <button id="btn-cerrar-sala" title="Cerrar">✕</button>
+  </div>
+
+  <div id="sala-sin-sesion">
+    <p class="vacio">Iniciá sesión para publicar ejercicios y verlos aparecer en vivo.</p>
+    <div class="sala-botones">
+      <button id="btn-entrar-google">Entrar con Google</button>
+      <button id="btn-entrar-microsoft">Entrar con Microsoft</button>
+    </div>
+  </div>
+
+  <div id="sala-con-sesion" hidden>
+    <p id="sala-usuario" class="vacio"></p>
+
+    <div class="sala-fila">
+      <label for="sala-selector">Sala</label>
+      <select id="sala-selector" aria-label="Sala actual"></select>
+      <span id="sala-codigo" class="sala-etiqueta"></span>
+    </div>
+
+    <div class="sala-fila">
+      <input id="sala-nombre-nueva" placeholder="Nombre de la sala" autocomplete="off">
+      <button id="btn-crear-sala">Crear</button>
+    </div>
+    <div class="sala-fila">
+      <input id="sala-codigo-unirse" placeholder="Código para unirte" autocomplete="off">
+      <button id="btn-unirse-sala">Unirme</button>
+    </div>
+
+    <div class="sala-botones">
+      <button id="btn-compartir">Compartir en la sala</button>
+      <button id="btn-salir-sesion">Cerrar sesión</button>
+    </div>
+    <p id="sala-que-comparte" class="vacio"></p>
+
+    <h3>Publicado en la sala</h3>
+    <div id="sala-feed"></div>
+  </div>
+</dialog>
 
 <footer>
   <kbd>Ctrl</kbd>+<kbd>S</kbd> guarda · <kbd>Ctrl</kbd>+<kbd>O</kbd> abre · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> verifica · <kbd>Ctrl</kbd>+<kbd>Enter</kbd> ejecuta · <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>F</kbd> formatea la sangría · <span id="nota-guardado"></span>

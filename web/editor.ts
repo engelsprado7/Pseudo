@@ -30,10 +30,12 @@ import {
 } from "./archivos.ts";
 import {
   explicar,
+  leerEjercicio,
   verificarSolucion,
   type Ejercicio,
   type ResultadoCaso,
 } from "../src/ejercicio.ts";
+import { iniciarNubeUI } from "./nube-ui.ts";
 
 const EJEMPLO = `// Promedio de notas de un grupo, con clasificación.
 
@@ -682,11 +684,20 @@ const selector = document.querySelector<HTMLSelectElement>("#selector-ejercicio"
 const btnVerificar = document.querySelector<HTMLButtonElement>("#btn-verificar")!;
 const panelEnunciado = document.querySelector<HTMLElement>("#enunciado")!;
 const tituloPanelInferior = document.querySelector<HTMLElement>("#titulo-panel-inferior")!;
+const pestanas = document.querySelector<HTMLElement>("#pestanas-panel")!;
+const pestanaEjercicio = document.querySelector<HTMLButtonElement>("#pestana-ejercicio")!;
+const pestanaProblemas = document.querySelector<HTMLButtonElement>("#pestana-problemas")!;
+
+pestanaEjercicio.addEventListener("click", () => mirarPestana("enunciado"));
+pestanaProblemas.addEventListener("click", () => mirarPestana("problemas"));
 
 let ejercicioActual: Ejercicio | null = null;
 
 /** Renderiza el enunciado. Solo se interpretan bloques ``` y párrafos. */
 function mostrarEnunciado(ejercicio: Ejercicio): void {
+  // Abrir un ejercicio es pedir leerlo: la pestaña vuelve al enunciado aunque
+  // el alumno estuviera mirando los problemas del ejercicio anterior.
+  pestanaPanel = "enunciado";
   panelEnunciado.innerHTML = "";
 
   const titulo = document.createElement("h3");
@@ -708,12 +719,17 @@ function mostrarEnunciado(ejercicio: Ejercicio): void {
   panelEnunciado.appendChild(nota);
 }
 
+/** Con un ejercicio abierto, qué pestaña del panel inferior se está mirando. */
+let pestanaPanel: "enunciado" | "problemas" = "enunciado";
+
 /**
  * Decide qué muestra el panel inferior.
  *
- * Los errores tienen prioridad sobre el enunciado: son lo que el alumno necesita
- * para avanzar, y esconderlos porque hay un ejercicio abierto sería justo al
- * revés. Cuando el código está limpio, vuelve el enunciado.
+ * Antes los errores tapaban el enunciado, y resultó ser justo al revés de lo
+ * que hace falta: el alumno casi siempre tiene errores *mientras* resuelve, que
+ * es exactamente cuando necesita leer la consigna. Ahora, con un ejercicio
+ * abierto, el panel tiene dos pestañas y manda el alumno; los errores no
+ * desaparecen (siguen subrayados en el editor y contados en la pestaña).
  */
 function ajustarPanelInferior(): void {
   // Mientras se visualiza, el panel muestra las variables por encima de todo.
@@ -721,17 +737,49 @@ function ajustarPanelInferior(): void {
     panelVariables.hidden = false;
     salida.hidden = true;
     panelEnunciado.hidden = true;
+    pestanas.hidden = true;
+    tituloPanelInferior.hidden = false;
     tituloPanelInferior.textContent = "Variables";
     return;
   }
   panelVariables.hidden = true;
-  const hayErrores = analizar(vista.state.doc.toString()).some(
+
+  const errores = analizar(vista.state.doc.toString()).filter(
     (d) => d.severidad === "error",
-  );
-  const mostrarEnunciadoAhora = ejercicioActual !== null && !hayErrores;
-  panelEnunciado.hidden = !mostrarEnunciadoAhora;
-  salida.hidden = mostrarEnunciadoAhora;
-  tituloPanelInferior.textContent = mostrarEnunciadoAhora ? "Ejercicio" : "Problemas";
+  ).length;
+
+  // Sin ejercicio abierto no hay nada que elegir: el panel son los problemas.
+  if (ejercicioActual === null) {
+    pestanas.hidden = true;
+    tituloPanelInferior.hidden = false;
+    tituloPanelInferior.textContent = "Problemas";
+    panelEnunciado.hidden = true;
+    salida.hidden = false;
+    return;
+  }
+
+  pestanas.hidden = false;
+  tituloPanelInferior.hidden = true;
+
+  const enEnunciado = pestanaPanel === "enunciado";
+  panelEnunciado.hidden = !enEnunciado;
+  salida.hidden = enEnunciado;
+  pestanaEjercicio.setAttribute("aria-selected", String(enEnunciado));
+  pestanaProblemas.setAttribute("aria-selected", String(!enEnunciado));
+
+  // El contador es lo que evita que esconder la lista se sienta como perderla.
+  pestanaProblemas.textContent = "Problemas";
+  if (errores > 0) {
+    const cuenta = document.createElement("span");
+    cuenta.className = "cuenta";
+    cuenta.textContent = ` ${errores}`;
+    pestanaProblemas.appendChild(cuenta);
+  }
+}
+
+function mirarPestana(cual: "enunciado" | "problemas"): void {
+  pestanaPanel = cual;
+  ajustarPanelInferior();
 }
 
 function claseDeCaso(caso: ResultadoCaso): string {
@@ -1080,3 +1128,93 @@ if (sesionPrevia !== null) {
 }
 refrescarCabeceraArchivo();
 actualizarEstado(vista.state.doc.toString());
+
+// ------------------------------------------------------------------
+// Sala de clase (opcional)
+// ------------------------------------------------------------------
+
+// Si no hay `nube.json`, `iniciarNubeUI` no hace nada y el botón queda oculto:
+// el editor funciona igual sin internet ni cuenta, que es la idea.
+void iniciarNubeUI({
+  codigoActual: () => vista.state.doc.toString(),
+  nombreActual: () => nombreArchivo,
+
+  cargarCodigo(texto, titulo) {
+    if (!confirmarDescarte(`Cargar "${titulo}"`)) return false;
+    nombreArchivo = conExtension(titulo.replace(/\.psc$/i, ""));
+    manejadorArchivo = undefined;
+    reemplazarContenido(texto);
+    referenciaGuardada = texto;
+    refrescarCabeceraArchivo();
+    recordarSesion();
+    anexar(`Se cargó "${titulo}" desde la sala.\n`, "fin");
+    return true;
+  },
+
+  cargarEjercicioMd(markdown, titulo, codigo) {
+    const leido = leerEjercicio(markdown);
+    if (!leido.ok) {
+      const detalle = leido.errores.map((e) => `línea ${e.linea}: ${e.mensaje}`).join("\n");
+      anexar(`El ejercicio "${titulo}" tiene problemas de formato:\n${detalle}\n`, "roto");
+      return false;
+    }
+    // Solo se pregunta si de verdad se va a pisar el editor: un ejercicio
+    // publicado sin código no toca lo que el alumno tenga escrito.
+    if (codigo !== null && !confirmarDescarte(`Abrir "${leido.ejercicio.titulo}"`)) {
+      return false;
+    }
+
+    // Viene de la sala, no de `ejercicios/`: el selector local no lo tiene, así
+    // que se deja en "Sin ejercicio" para no mentir sobre qué está abierto.
+    selector.value = "";
+    ejercicioSeleccionado = "";
+    localStorage.removeItem("pseudo:ejercicio");
+
+    if (codigo !== null) {
+      nombreArchivo = conExtension(titulo);
+      manejadorArchivo = undefined;
+      reemplazarContenido(codigo);
+      referenciaGuardada = codigo;
+      refrescarCabeceraArchivo();
+      recordarSesion();
+    }
+
+    ejercicioActual = leido.ejercicio;
+    btnVerificar.hidden = false;
+    mostrarEnunciado(leido.ejercicio);
+    ajustarPanelInferior();
+    anexar(
+      codigo === null
+        ? `Se abrió el ejercicio "${leido.ejercicio.titulo}" de la sala (sin código).\n`
+        : `Se abrió el ejercicio "${leido.ejercicio.titulo}" de la sala.\n`,
+      "fin",
+    );
+    return true;
+  },
+
+  async ejercicioAbierto() {
+    // Se publica el `.md` crudo, no el ejercicio ya parseado: así lo que viaja
+    // es exactamente el archivo que el docente escribió. El código va aparte,
+    // tal como está en el editor en este momento.
+    const archivo = selector.value;
+    if (archivo === "") return null;
+    try {
+      const respuesta = await fetch(`./ejercicios/${archivo}`, { cache: "no-cache" });
+      if (!respuesta.ok) return null;
+      const contenido = await respuesta.text();
+      // El título sale del propio .md, no de `ejercicioActual`: si el selector
+      // cambió y la carga no terminó (o se canceló), usar el estado del editor
+      // publicaría el título de un ejercicio con el contenido de otro.
+      const leido = leerEjercicio(contenido);
+      return {
+        titulo: leido.ok ? leido.ejercicio.titulo : archivo,
+        contenido,
+        codigo: vista.state.doc.toString(),
+      };
+    } catch {
+      return null;
+    }
+  },
+
+  avisar: (mensaje, clase) => anexar(mensaje, clase),
+});
