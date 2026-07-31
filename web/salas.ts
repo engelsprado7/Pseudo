@@ -153,6 +153,99 @@ export async function quitarMiembro(sala: string, usuario: string): Promise<Resu
 }
 
 // ------------------------------------------------------------------
+// Progreso de la clase
+// ------------------------------------------------------------------
+
+export interface FilaProgreso {
+  ejercicio: string;
+  alumno: string;
+  aprobados: number;
+  total: number;
+  fallados: string[];
+  intentos: number;
+}
+
+/** Resumen por ejercicio, que es como el docente lo mira. */
+export interface ResumenEjercicio {
+  ejercicio: string;
+  titulo: string;
+  aprobaron: number;
+  intentaron: number;
+  /** Casos que más gente falla, del peor al mejor. */
+  casosDificiles: Array<{ nombre: string; cuantos: number }>;
+}
+
+/** Registra cómo le fue al alumno. Silencioso: no debe estorbar al verificar. */
+export async function registrarProgreso(
+  sala: string,
+  ejercicio: string,
+  aprobados: number,
+  total: number,
+  fallados: string[],
+): Promise<void> {
+  const c = await cliente();
+  if (c === null) return;
+  await c.rpc("registrar_progreso", {
+    p_sala: sala,
+    p_ejercicio: ejercicio,
+    p_aprobados: aprobados,
+    p_total: total,
+    p_fallados: fallados,
+  });
+}
+
+export async function listarProgreso(sala: string): Promise<Resultado<FilaProgreso[]>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { data, error } = await c
+    .from("progreso")
+    .select("ejercicio, alumno, aprobados, total, fallados, intentos")
+    .eq("sala", sala);
+
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: data as unknown as FilaProgreso[] };
+}
+
+/**
+ * Agrupa las filas por ejercicio.
+ *
+ * Se hace en el cliente y no en SQL porque la clase entra en una consulta y la
+ * cuenta es trivial: una vista o una función serían más piezas que mantener
+ * para ahorrar milisegundos que nadie va a notar.
+ */
+export function resumirProgreso(
+  filas: FilaProgreso[],
+  titulos: Map<string, string>,
+): ResumenEjercicio[] {
+  const porEjercicio = new Map<string, FilaProgreso[]>();
+  for (const f of filas) {
+    const lista = porEjercicio.get(f.ejercicio) ?? [];
+    lista.push(f);
+    porEjercicio.set(f.ejercicio, lista);
+  }
+
+  const resumen: ResumenEjercicio[] = [];
+  for (const [ejercicio, lista] of porEjercicio) {
+    const cuenta = new Map<string, number>();
+    for (const f of lista) {
+      for (const caso of f.fallados) cuenta.set(caso, (cuenta.get(caso) ?? 0) + 1);
+    }
+    resumen.push({
+      ejercicio,
+      titulo: titulos.get(ejercicio) ?? "Ejercicio",
+      aprobaron: lista.filter((f) => f.total > 0 && f.aprobados === f.total).length,
+      intentaron: lista.length,
+      casosDificiles: [...cuenta.entries()]
+        .map(([nombre, cuantos]) => ({ nombre, cuantos }))
+        .sort((a, b) => b.cuantos - a.cuantos)
+        .slice(0, 3),
+    });
+  }
+  return resumen.sort((a, b) => a.titulo.localeCompare(b.titulo));
+}
+
+// ------------------------------------------------------------------
 // Publicaciones
 // ------------------------------------------------------------------
 
@@ -464,6 +557,13 @@ export async function escucharSala(
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "programas", filter: `sala=eq.${sala}` },
+      alCambiar,
+    )
+    // El progreso es lo que más cambia durante una clase: es justo lo que el
+    // docente quiere ver moverse sin recargar.
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "progreso", filter: `sala=eq.${sala}` },
       alCambiar,
     );
 

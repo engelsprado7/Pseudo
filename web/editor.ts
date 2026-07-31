@@ -36,7 +36,7 @@ import {
   type ResultadoCaso,
   type ResultadoEjercicio,
 } from "../src/ejercicio.ts";
-import { iniciarNubeUI } from "./nube-ui.ts";
+import { iniciarNubeUI, type ControlesNube } from "./nube-ui.ts";
 import { icono } from "./iconos.ts";
 import { tokenizar } from "../src/lexer.ts";
 import { parsear } from "../src/parser.ts";
@@ -838,10 +838,22 @@ function verificar(): void {
   // falló. Mandarlo al panel de salida de arriba lo obligaba a buscarlo en otro
   // lado, justo en el momento de mayor frustración.
   ultimaVerificacion = resultado;
+  if (idEjercicioRemoto !== null) {
+    controlesNube.registrarResultado(
+      idEjercicioRemoto,
+      resultado.aprobados,
+      resultado.total,
+      resultado.casos.filter((c) => c.estado !== "bien").map((c) => c.nombre),
+    );
+  }
   pestanaPanel = "problemas";
   actualizarEstado(vista.state.doc.toString());
   ajustarPanelInferior();
 }
+
+/** Id del ejercicio de la sala que está abierto, para poder reportar el progreso. */
+let idEjercicioRemoto: string | null = null;
+let controlesNube: ControlesNube = { registrarResultado: () => {} };
 
 /** Resultado de la última verificación, mientras el código no cambie. */
 let ultimaVerificacion: ResultadoEjercicio | null = null;
@@ -929,6 +941,7 @@ async function mostrarEjercicio(archivo: string): Promise<boolean> {
     anexar(cargado.mensaje + "\n", "roto");
     return false;
   }
+  idEjercicioRemoto = null;
   ejercicioActual = cargado.ejercicio;
   // Sin casos no hay nada que corregir: ofrecer Verificar sería prometer algo
   // que el ejercicio no puede cumplir.
@@ -940,6 +953,7 @@ async function mostrarEjercicio(archivo: string): Promise<boolean> {
 
 /** Vuelve al estado "sin ejercicio": limpia el selector, el enunciado y Verificar. */
 function deseleccionarEjercicio(): void {
+  idEjercicioRemoto = null;
   selector.value = "";
   ejercicioActual = null;
   ejercicioSeleccionado = "";
@@ -1319,7 +1333,7 @@ void iniciarNubeUI({
     return true;
   },
 
-  cargarEjercicioMd(markdown, titulo, codigo) {
+  cargarEjercicioMd(markdown, titulo, codigo, idRemoto) {
     const leido = leerEjercicio(markdown);
     if (!leido.ok) {
       const detalle = leido.errores.map((e) => `línea ${e.linea}: ${e.mensaje}`).join("\n");
@@ -1349,6 +1363,7 @@ void iniciarNubeUI({
     refrescarCabeceraArchivo();
     recordarSesion();
 
+    idEjercicioRemoto = idRemoto;
     ejercicioActual = leido.ejercicio;
     btnVerificar.hidden = leido.ejercicio.casos.length === 0;
     mostrarEnunciado(leido.ejercicio);
@@ -1388,4 +1403,6 @@ void iniciarNubeUI({
   },
 
   avisar: (mensaje, clase) => anexar(mensaje, clase),
+}).then((c) => {
+  controlesNube = c;
 });

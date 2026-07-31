@@ -603,6 +603,29 @@
   }
   #sala-pie:has(#sala-usuario:empty) { display: none; }
 
+  /* Progreso de la clase */
+  #lista-progreso { display: flex; flex-direction: column; gap: 8px; }
+  .prog {
+    padding: 9px 11px;
+    border: 1px solid var(--borde);
+    border-left: 3px solid var(--sx-funcion);
+    border-radius: 8px;
+    background: var(--fondo);
+  }
+  .prog-cabecera { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .prog-titulo { font-weight: 500; font-size: 13px; }
+  .prog-cuenta { margin-left: auto; font-size: 12px; color: var(--tenue); white-space: nowrap; }
+  /* La barra da la proporción de un vistazo; el número exacto está al lado. */
+  .prog-barra {
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tenue) 25%, transparent);
+    overflow: hidden;
+  }
+  .prog-barra > div { height: 100%; background: var(--ok); border-radius: 999px; }
+  .prog-dificil { margin-top: 7px; font-size: 12px; color: var(--tenue); line-height: 1.5; }
+  .prog-dificil b { color: var(--aviso); font-weight: 500; }
+
   /* Miembros de la sala */
   #sala-miembros { margin-top: 18px; }
   #lista-miembros { display: flex; flex-direction: column; gap: 4px; }
@@ -981,6 +1004,11 @@
     </div>
 
     <div id="sala-secciones"></div>
+
+    <section id="sala-progreso" class="seccion-feed" hidden>
+      <h3>Cómo va la clase</h3>
+      <div id="lista-progreso"></div>
+    </section>
 
     <section id="sala-miembros" class="seccion-feed" hidden>
       <h3>Quiénes están en la sala</h3>
