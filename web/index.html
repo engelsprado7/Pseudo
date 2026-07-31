@@ -242,39 +242,6 @@
   #zona-soltar.visible { display: flex; }
   #envoltorio-editor { position: relative; min-height: 0; display: flex; }
 
-  button {
-    font: inherit;
-    font-size: 13px;
-    padding: 5px 11px;
-    border: 1px solid var(--borde);
-    border-radius: 6px;
-    background: var(--fondo);
-    color: var(--texto);
-    cursor: pointer;
-  }
-  button:hover { border-color: var(--tenue); }
-  button[disabled] { opacity: .45; cursor: not-allowed; }
-
-  select {
-    font: inherit;
-    font-size: 13px;
-    padding: 4px 7px;
-    border: 1px solid var(--borde);
-    border-radius: 6px;
-    background: var(--fondo);
-    color: var(--texto);
-    max-width: 210px;
-  }
-
-  .estado {
-    font-size: 13px;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-variant-numeric: tabular-nums;
-  }
-  .estado.ok { color: var(--ok); }
-  .estado.aviso { color: var(--aviso); }
-  .estado.error { color: var(--err); }
 
   main {
     flex: 1;
@@ -636,6 +603,31 @@
   }
   #sala-pie:has(#sala-usuario:empty) { display: none; }
 
+  /* Miembros de la sala */
+  #sala-miembros { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--borde); }
+  #lista-miembros { display: flex; flex-direction: column; gap: 4px; }
+  .miembro {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 7px;
+    font-size: 13px;
+  }
+  .miembro:hover { background: var(--panel); }
+  .miembro-nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .miembro-yo { color: var(--tenue); font-size: 11px; }
+  .miembro-rol {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--borde);
+    color: var(--tenue);
+    white-space: nowrap;
+  }
+  .miembro-rol.docente { color: var(--sx-funcion); border-color: currentColor; }
+
   /* --- Secciones del feed --- */
   #sala-secciones { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
   .seccion-feed { display: flex; flex-direction: column; gap: 6px; }
@@ -759,8 +751,20 @@
     color: var(--tenue);
   }
   .feed-accion:hover { background: var(--panel); border-color: var(--borde); color: var(--texto); }
+  /* Las acciones de lista son discretas aunque sean destructivas: el rojo pleno
+     de la barra grita demasiado en una fila. El color aparece al apuntar. */
+  .feed-accion.peligro, .feed-accion.destacada {
+    background: transparent;
+    border-color: transparent;
+    font-weight: 400;
+  }
+  .feed-accion.peligro { color: var(--tenue); }
+  .feed-accion.peligro:hover {
+    background: var(--panel);
+    color: var(--err);
+    border-color: var(--err);
+  }
   .feed-accion.destacada { color: var(--sx-funcion); font-weight: 500; }
-  .feed-accion.peligro:hover { color: var(--err); border-color: var(--err); }
 
   /* --- Movimiento --- */
   /* Sutil y corto: la animación tiene que hacer legible de dónde salió una
@@ -929,6 +933,11 @@
       <div class="sala-fila">
         <input id="sala-codigo-unirse" placeholder="Código para unirte" autocomplete="off">
         <button type="button" id="btn-unirse-sala">Unirme</button>
+      </div>
+
+      <div id="sala-miembros" hidden>
+        <h3>Quiénes están en la sala</h3>
+        <div id="lista-miembros"></div>
       </div>
     </div>
 

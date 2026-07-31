@@ -89,6 +89,70 @@ export async function unirseASala(codigo: string): Promise<Resultado<string>> {
 }
 
 // ------------------------------------------------------------------
+// Miembros
+// ------------------------------------------------------------------
+
+export interface Miembro {
+  id: string;
+  nombre: string;
+  rol: "docente" | "alumno";
+}
+
+export async function listarMiembros(sala: string): Promise<Resultado<Miembro[]>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { data, error } = await c
+    .from("miembros")
+    .select("usuario, rol, perfiles:usuario ( nombre )")
+    .eq("sala", sala);
+
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+
+  const filas = data as unknown as Array<{
+    usuario: string;
+    rol: "docente" | "alumno";
+    perfiles: { nombre: string | null } | null;
+  }>;
+  return {
+    ok: true,
+    // Docentes primero, y dentro de cada grupo por nombre: la lista se lee
+    // buscando quién manda antes que buscando a alguien en particular.
+    dato: filas
+      .map((f) => ({ id: f.usuario, nombre: f.perfiles?.nombre ?? "Alguien", rol: f.rol }))
+      .sort((a, b) =>
+        a.rol === b.rol ? a.nombre.localeCompare(b.nombre) : a.rol === "docente" ? -1 : 1,
+      ),
+  };
+}
+
+export async function cambiarRol(
+  sala: string,
+  usuario: string,
+  rol: "docente" | "alumno",
+): Promise<Resultado<null>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c.rpc("cambiar_rol", {
+    p_sala: sala,
+    p_usuario: usuario,
+    p_rol: rol,
+  });
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: null };
+}
+
+export async function quitarMiembro(sala: string, usuario: string): Promise<Resultado<null>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c.rpc("quitar_miembro", { p_sala: sala, p_usuario: usuario });
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: null };
+}
+
+// ------------------------------------------------------------------
 // Publicaciones
 // ------------------------------------------------------------------
 

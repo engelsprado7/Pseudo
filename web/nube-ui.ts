@@ -17,6 +17,7 @@ import {
   actualizarEjercicio,
   borrarEjercicio,
   borrarPrograma,
+  cambiarRol,
   compartirPrograma,
   copiarEjercicio,
   crearSala,
@@ -24,14 +25,17 @@ import {
   escucharSala,
   guardarEjercicioPersonal,
   listarEjercicios,
+  listarMiembros,
   listarProgramas,
   misEjercicios,
   misSalas,
   publicarBorrador,
   publicarEjercicio,
+  quitarMiembro,
   traerEjercicio,
   traerPrograma,
   unirseASala,
+  type Miembro,
   type Publicacion,
   type Sala,
 } from "./salas.ts";
@@ -94,6 +98,8 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
   const selector = document.querySelector<HTMLSelectElement>("#sala-selector")!;
   const elCodigo = document.querySelector<HTMLElement>("#sala-codigo")!;
   const secciones = document.querySelector<HTMLElement>("#sala-secciones")!;
+  const panelMiembros = document.querySelector<HTMLElement>("#sala-miembros")!;
+  const listaMiembros = document.querySelector<HTMLElement>("#lista-miembros")!;
 
   const nombreNueva = document.querySelector<HTMLInputElement>("#sala-nombre-nueva")!;
   const codigoUnirse = document.querySelector<HTMLInputElement>("#sala-codigo-unirse")!;
@@ -248,6 +254,96 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     }
   }
 
+  /**
+   * Dibuja quiénes están en la sala.
+   *
+   * La lista la ve cualquier miembro —saber con quién compartís la clase no es
+   * información sensible— pero las acciones son solo del docente. Aun así, la
+   * regla de verdad está en la base: `cambiar_rol` y `quitar_miembro` verifican
+   * el rol por su cuenta, así que esconder los botones es comodidad, no
+   * seguridad.
+   */
+  function pintarMiembros(miembros: Miembro[], soyDocente: boolean): void {
+    listaMiembros.textContent = "";
+
+    for (const m of miembros) {
+      const fila = document.createElement("div");
+      fila.className = "miembro";
+
+      const nombre = document.createElement("span");
+      nombre.className = "miembro-nombre";
+      nombre.textContent = m.nombre;
+      fila.appendChild(nombre);
+
+      if (m.id === usuario?.id) {
+        const yo = document.createElement("span");
+        yo.className = "miembro-yo";
+        yo.textContent = "(vos)";
+        fila.appendChild(yo);
+      }
+
+      const rol = document.createElement("span");
+      rol.className = `miembro-rol ${m.rol}`;
+      rol.textContent = m.rol;
+      fila.appendChild(rol);
+
+      if (soyDocente) {
+        const otroRol = m.rol === "docente" ? "alumno" : "docente";
+        fila.appendChild(
+          accion(
+            otroRol === "docente" ? "Hacer docente" : "Hacer alumno",
+            `Pasar a ${otroRol}`,
+            () => void cambiarRolDe(m, otroRol),
+            otroRol === "docente" ? "publicar" : "bajar",
+          ),
+        );
+        if (m.id !== usuario?.id) {
+          fila.appendChild(
+            accion("Quitar", "Sacar de la sala", () => void quitarDeLaSala(m), "borrar", "peligro"),
+          );
+        }
+      }
+
+      listaMiembros.appendChild(fila);
+    }
+  }
+
+  async function cambiarRolDe(m: Miembro, rol: "docente" | "alumno"): Promise<void> {
+    if (salaActual === null) return;
+    const r = await cambiarRol(salaActual, m.id, rol);
+    enlace.avisar(
+      r.ok ? `${m.nombre} ahora es ${rol} de la sala.\n` : r.mensaje + "\n",
+      r.ok ? "fin" : "roto",
+    );
+    // El propio rol puede haber cambiado: hay que rehacer salas y acciones.
+    if (r.ok) await recargarSalas();
+  }
+
+  async function quitarDeLaSala(m: Miembro): Promise<void> {
+    if (salaActual === null) return;
+    if (!confirm(`¿Sacar a ${m.nombre} de la sala?`)) return;
+    const r = await quitarMiembro(salaActual, m.id);
+    enlace.avisar(
+      r.ok ? `${m.nombre} ya no está en la sala.\n` : r.mensaje + "\n",
+      r.ok ? "fin" : "roto",
+    );
+    if (r.ok) await refrescarMiembros();
+  }
+
+  async function refrescarMiembros(): Promise<void> {
+    if (salaActual === null) {
+      panelMiembros.hidden = true;
+      return;
+    }
+    const r = await listarMiembros(salaActual);
+    if (!r.ok) {
+      panelMiembros.hidden = true;
+      return;
+    }
+    panelMiembros.hidden = false;
+    pintarMiembros(r.dato, salas.find((s) => s.id === salaActual)?.rol === "docente");
+  }
+
   // --- Datos ---
 
   async function refrescarFeed(): Promise<void> {
@@ -290,6 +386,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     }
     pintarSalas();
     await refrescarFeed();
+    await refrescarMiembros();
   }
 
   async function recargarSalas(): Promise<void> {
