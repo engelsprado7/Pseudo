@@ -51,9 +51,12 @@ create table if not exists salas (
   creada timestamptz not null default now()
 );
 
+-- 'usuario' apunta a 'perfiles' y no a 'auth.users' por el mismo motivo que
+-- 'autor' en programas y ejercicios: es lo que le permite a PostgREST traer el
+-- nombre de cada miembro junto con la fila, sin una segunda consulta.
 create table if not exists miembros (
   sala uuid not null references salas on delete cascade,
-  usuario uuid not null references auth.users on delete cascade,
+  usuario uuid not null references perfiles on delete cascade,
   rol text not null default 'alumno' check (rol in ('docente', 'alumno')),
   primary key (sala, usuario)
 );
