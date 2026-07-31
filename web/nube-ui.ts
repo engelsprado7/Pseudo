@@ -58,7 +58,8 @@ export interface Enlace {
     markdown: string,
     titulo: string,
     codigo: string | null,
-    idRemoto: string,
+    /** Id en la sala, o `null` si es un borrador propio: eso no cuenta para el progreso. */
+    idRemoto: string | null,
   ) => boolean;
   /** El `.md` del ejercicio abierto más el código del editor, o `null`. */
   ejercicioAbierto: () => Promise<{
@@ -578,7 +579,10 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
         enlace.avisar(r.mensaje + "\n", "roto");
         return;
       }
-      if (enlace.cargarEjercicioMd(r.dato.contenido, item.titulo, r.dato.codigo, item.id)) {
+      // Un borrador es privado: practicar en él no tiene por qué aparecer en
+      // el panel del docente, así que no se manda su id.
+      const idParaProgreso = item.tipo === "ejercicio" ? item.id : null;
+      if (enlace.cargarEjercicioMd(r.dato.contenido, item.titulo, r.dato.codigo, idParaProgreso)) {
         dialogo.close();
       }
       return;
