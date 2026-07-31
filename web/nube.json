@@ -1,4 +1,5 @@
 {
   "url": "https://ozcapcbsniupscbdismu.supabase.co",
-  "publishableKey": "sb_publishable_icBhaNM3k2IR-iWSnLfi1A_CWnCA_Nq"
+  "publishableKey": "sb_publishable_icBhaNM3k2IR-iWSnLfi1A_CWnCA_Nq",
+  "proveedores": ["google"]
 }

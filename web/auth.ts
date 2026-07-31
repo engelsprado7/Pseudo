@@ -8,9 +8,9 @@
  * alumno sí dice "Microsoft", que es lo que tiene escrito en su cuenta escolar.
  */
 import type { Session, User } from "@supabase/supabase-js";
-import { cliente } from "./nube.ts";
+import { cliente, type Proveedor } from "./nube.ts";
 
-export type Proveedor = "google" | "azure";
+export type { Proveedor };
 
 export interface Usuario {
   id: string;

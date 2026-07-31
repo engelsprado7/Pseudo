@@ -15,9 +15,22 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+/** Proveedores de identidad soportados. 'azure' es como Supabase llama a Microsoft. */
+export type Proveedor = "google" | "azure";
+
+const PROVEEDORES: Proveedor[] = ["google", "azure"];
+
 export interface ConfigNube {
   url: string;
   publishableKey: string;
+  /**
+   * Qué botones de inicio de sesión mostrar.
+   *
+   * Está en la configuración y no en el código porque un proveedor sin registrar
+   * en Supabase da un error feo al hacer clic: es mejor no ofrecerlo. Así se
+   * agrega Microsoft el día que se registre, sin recompilar.
+   */
+  proveedores: Proveedor[];
 }
 
 /** `undefined` = todavía no se intentó; `null` = no hay nube configurada. */
@@ -45,10 +58,24 @@ export async function leerConfig(): Promise<ConfigNube | null> {
       return null;
     }
     const datos: unknown = await respuesta.json();
-    // La URL base, no la de REST: el cliente le agrega '/rest/v1' por su cuenta.
-    config = configValida(datos)
-      ? { url: datos.url.replace(/\/+(rest\/v1\/?)?$/, ""), publishableKey: datos.publishableKey }
-      : null;
+    if (!configValida(datos)) {
+      config = null;
+      return null;
+    }
+    // Sin lista explícita se asume solo Google: mostrar un botón que no funciona
+    // es peor que no mostrarlo.
+    const pedidos = Array.isArray((datos as { proveedores?: unknown }).proveedores)
+      ? ((datos as { proveedores: unknown[] }).proveedores.filter((p): p is Proveedor =>
+          PROVEEDORES.includes(p as Proveedor),
+        ) as Proveedor[])
+      : (["google"] as Proveedor[]);
+
+    config = {
+      // La URL base, no la de REST: el cliente le agrega '/rest/v1' por su cuenta.
+      url: datos.url.replace(/\/+(rest\/v1\/?)?$/, ""),
+      publishableKey: datos.publishableKey,
+      proveedores: pedidos,
+    };
     return config;
   } catch {
     config = null;

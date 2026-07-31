@@ -9,7 +9,7 @@
  * con las cuatro cosas que necesita. Así la nube se puede quitar sin tocar el
  * núcleo, que es la condición que se puso desde el principio.
  */
-import { hayNube } from "./nube.ts";
+import { hayNube, leerConfig } from "./nube.ts";
 import { alCambiarSesion, entrar, salir, usuarioActual, type Usuario } from "./auth.ts";
 import {
   compartirPrograma,
@@ -227,12 +227,16 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     .querySelector<HTMLButtonElement>("#btn-cerrar-sala")!
     .addEventListener("click", () => dialogo.close());
 
-  document
-    .querySelector<HTMLButtonElement>("#btn-entrar-google")!
-    .addEventListener("click", () => void entrar("google"));
-  document
-    .querySelector<HTMLButtonElement>("#btn-entrar-microsoft")!
-    .addEventListener("click", () => void entrar("azure"));
+  // Solo se ofrecen los proveedores que `nube.json` declara: un botón para un
+  // proveedor sin registrar en Supabase falla con un error que no dice nada.
+  const config = await leerConfig();
+  const botonGoogle = document.querySelector<HTMLButtonElement>("#btn-entrar-google")!;
+  const botonMicrosoft = document.querySelector<HTMLButtonElement>("#btn-entrar-microsoft")!;
+  botonGoogle.hidden = !(config?.proveedores.includes("google") ?? false);
+  botonMicrosoft.hidden = !(config?.proveedores.includes("azure") ?? false);
+
+  botonGoogle.addEventListener("click", () => void entrar("google"));
+  botonMicrosoft.addEventListener("click", () => void entrar("azure"));
   document
     .querySelector<HTMLButtonElement>("#btn-salir-sesion")!
     .addEventListener("click", () => void salir());
