@@ -111,8 +111,25 @@ create table if not exists ejercicios (
   creado timestamptz not null default now()
 );
 
+-- A qué ejercicio responde una entrega. Nula para código suelto, que no responde
+-- a ninguno; ahí la unicidad es por sala y autor.
+--
+-- Va como 'alter' y no dentro del 'create table' porque 'programas' se define
+-- antes que 'ejercicios': en un despliegue desde cero, la referencia apuntaría a
+-- una tabla que todavía no existe.
+alter table programas add column if not exists ejercicio text
+  references ejercicios on delete set null;
+
 create index if not exists programas_por_sala on programas (sala, creado desc);
 create index if not exists ejercicios_por_sala on ejercicios (sala, creado desc);
+
+-- Una persona, una entrega por ejercicio. Va en un índice y no solo dentro de
+-- 'compartir_solucion' porque la política de INSERT permite escribir directo por
+-- la API: una regla que vive solo en la función se saltea llamando al endpoint.
+-- El 'coalesce' es porque en un índice único los NULL se consideran distintos
+-- entre sí, y el código suelto volvería a poder duplicarse.
+create unique index if not exists programas_una_entrega
+  on programas (sala, autor, coalesce(ejercicio, ''));
 
 -- ------------------------------------------------------------------
 -- RLS
@@ -163,13 +180,21 @@ drop policy if exists "crear sala" on salas;
 create policy "crear sala" on salas
   for insert to authenticated with check (docente = auth.uid());
 
+-- Quién manda lo decide 'miembros.rol', no 'salas.docente'. Esa columna guarda
+-- quién creó la sala, que desde que los roles se pueden cambiar dejó de ser lo
+-- mismo: alguien bajado a alumno seguiría pudiendo borrarla, y un colega
+-- promovido a docente no podría ni renombrarla. Se conserva como dato
+-- histórico, pero no decide permisos.
 drop policy if exists "el docente edita su sala" on salas;
 create policy "el docente edita su sala" on salas
-  for update to authenticated using (docente = auth.uid()) with check (docente = auth.uid());
+  for update to authenticated
+  using (es_docente(id))
+  with check (es_docente(id));
 
 drop policy if exists "el docente borra su sala" on salas;
 create policy "el docente borra su sala" on salas
-  for delete to authenticated using (docente = auth.uid());
+  for delete to authenticated
+  using (es_docente(id));
 
 -- Miembros: cada quien ve la lista de sus salas y puede irse; el docente manda.
 drop policy if exists "ver miembros de mis salas" on miembros;
