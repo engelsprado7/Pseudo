@@ -69,14 +69,45 @@ Fin`).filter((x: { severidad: string }) => x.severidad === "error");
     assert.match(d[1].sugerencia, /cantidad <> 0/);
   });
 
-  test("no verifica tipos si la sintaxis está rota", async () => {
+  test("con la sintaxis rota igual reporta los nombres mal escritos", async () => {
     const { analizar } = await import(ANALISIS.href);
-    // Falta 'Entonces'. No debe agregar errores fantasma de tipos.
-    const d = analizar("Inicio\n    Si x > 0\n        Escribir x\n    FinSi\nFin").filter(
-      (x: { severidad: string }) => x.severidad === "error",
+    // El error de la línea 3 no puede esconder los tres nombres mal tipeados:
+    // corregir uno y que aparezcan otros enseña que el editor no dice la verdad.
+    const d = analizar(
+      `Inicio
+    Definir base, altura, area Como Real
+    Escribir Szin Salto "Base: "
+    Leer azltura
+    area <- zbase * altura
+    Escribir zarea
+Fin`,
+    ).filter((x: { severidad: string }) => x.severidad === "error");
+
+    const mensajes = d.map((x: { mensaje: string }) => x.mensaje).join("\n");
+    assert.match(mensajes, /no esperaba 'Salto'/);
+    for (const nombre of ["azltura", "zbase", "zarea"]) {
+      assert.match(mensajes, new RegExp(`'${nombre}' no está declarada`));
+    }
+  });
+
+  test("una declaración rota no inventa variables no declaradas", async () => {
+    const { analizar } = await import(ANALISIS.href);
+    // 'y' es palabra reservada, así que el 'Definir' entero se pierde y el
+    // verificador deja de ver 'x'. Decir "'x' no está declarada" sería mentira.
+    const d = analizar(
+      `Inicio
+    Definir x, y Como Real
+    Si 1 < x < 10 Entonces
+        Escribir "rango"
+    FinSi
+Fin`,
+    ).filter((x: { severidad: string }) => x.severidad === "error");
+
+    assert.match(d[0].mensaje, /palabra reservada/);
+    assert.ok(
+      !d.some((x: { mensaje: string }) => /'x' no está declarada/.test(x.mensaje)),
+      "no puede culpar a 'x' de un problema de 'y'",
     );
-    assert.equal(d.length, 1);
-    assert.match(d[0].mensaje, /se esperaba 'Hacer'|se esperaba 'Entonces'/);
   });
 
   test("compilar rechaza un programa con errores y acepta uno bueno", async () => {
