@@ -240,9 +240,11 @@ export function leerEjercicio(
   if (titulo === "") {
     errores.push({ linea: 1, mensaje: "falta el título. La primera línea tiene que ser '# Título'." });
   }
-  if (casos.length === 0) {
-    errores.push({ linea: 1, mensaje: "el ejercicio no tiene ningún caso de prueba." });
-  }
+
+  // Un ejercicio sin casos es válido: es un problema para resolver y ejecutar a
+  // mano, sin corrección automática. Se usa cuando el docente quiere plantear
+  // algo y ver las soluciones, no medirlas contra una salida exacta. Quien
+  // corrige tiene que mirar `casos.length`, no dar por hecho que hay casos.
 
   if (errores.length > 0) return { ok: false, errores };
 
@@ -256,6 +258,50 @@ export function leerEjercicio(
       casos,
     },
   };
+}
+
+// ------------------------------------------------------------------
+// Escritura del formato
+// ------------------------------------------------------------------
+
+export interface EjercicioNuevo {
+  titulo: string;
+  enunciado: string;
+  comparacion?: ModoComparacion;
+  decimales?: number | null;
+  casos: CasoDePrueba[];
+}
+
+/**
+ * Arma el `.md` de un ejercicio. Es la inversa exacta de `leerEjercicio`.
+ *
+ * Existe para que el formulario del editor web no invente un formato paralelo:
+ * lo que se guarda en la nube es el mismo archivo que escribiría un docente a
+ * mano, y se puede abrir, versionar o corregir sin la aplicación.
+ */
+export function escribirEjercicio(datos: EjercicioNuevo): string {
+  // Un ``` dentro del texto cerraría un bloque antes de tiempo y partiría el
+  // archivo. Se neutraliza acá, que es donde se conoce el formato.
+  const sinCercas = (t: string): string => t.replace(/```/g, "'''");
+
+  const partes: string[] = [`# ${sinCercas(datos.titulo.trim())}`, ""];
+
+  const enunciado = sinCercas(datos.enunciado.trim());
+  if (enunciado !== "") partes.push(enunciado, "");
+
+  if (datos.comparacion !== undefined) partes.push(`Comparación: ${datos.comparacion}`);
+  if (datos.decimales !== undefined && datos.decimales !== null) {
+    partes.push(`Decimales: ${datos.decimales}`);
+  }
+  if (datos.comparacion !== undefined || (datos.decimales ?? null) !== null) partes.push("");
+
+  for (const caso of datos.casos) {
+    partes.push(`## Caso: ${sinCercas(caso.nombre.trim())}`, "");
+    partes.push("```entrada", ...caso.entrada.map(sinCercas), "```", "");
+    partes.push("```salida", sinCercas(caso.salidaEsperada), "```", "");
+  }
+
+  return partes.join("\n").trimEnd() + "\n";
 }
 
 // ------------------------------------------------------------------
@@ -489,7 +535,9 @@ export function verificarSolucion(
     casos,
     aprobados,
     total: casos.length,
-    aprobado: aprobados === casos.length,
+    // Sin casos no hay nada que aprobar. Sin este `> 0`, un ejercicio de solo
+    // enunciado daría "aprobado" con 0 de 0 sin haber ejecutado una línea.
+    aprobado: casos.length > 0 && aprobados === casos.length,
   };
 }
 

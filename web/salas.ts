@@ -137,6 +137,49 @@ export async function listarProgramas(sala: string): Promise<Resultado<Publicaci
   return { ok: true, dato: aPublicaciones(data as unknown as FilaPublicacion[], "Sin título") };
 }
 
+/**
+ * Guarda un ejercicio sin sala: queda en el taller privado del autor.
+ *
+ * Es el mismo registro que uno publicado, solo que sin sala. Publicarlo después
+ * es agregarle una, no copiarlo a otro lado.
+ */
+export async function guardarEjercicioPersonal(
+  titulo: string,
+  contenido: string,
+  codigo: string | null,
+): Promise<Resultado<string>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { data: sesion } = await c.auth.getUser();
+  if (sesion.user === null) return { ok: false, mensaje: "Hay que iniciar sesión." };
+
+  const { data, error } = await c
+    .from("ejercicios")
+    .insert({ sala: null, autor: sesion.user.id, titulo, contenido, codigo })
+    .select("id")
+    .single();
+
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: (data as { id: string }).id };
+}
+
+/** Ejercicios propios sin publicar. */
+export async function misEjercicios(): Promise<Resultado<Publicacion[]>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { data, error } = await c
+    .from("ejercicios")
+    .select("id, titulo, creado, perfiles:autor ( nombre )")
+    .is("sala", null)
+    .order("creado", { ascending: false })
+    .limit(100);
+
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: aPublicaciones(data as unknown as FilaPublicacion[], "Sin título") };
+}
+
 export async function publicarEjercicio(
   sala: string,
   titulo: string,

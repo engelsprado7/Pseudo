@@ -424,6 +424,74 @@
     white-space: nowrap;
   }
 
+  /* Crear ejercicio */
+  #dialogo-ejercicio {
+    width: min(620px, 94vw);
+    max-height: 88vh;
+    overflow: auto;
+    padding: 16px 18px 18px;
+    border: 1px solid var(--borde);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--texto);
+    font-family: var(--sans);
+  }
+  #dialogo-ejercicio::backdrop { background: rgb(0 0 0 / .38); }
+  #dialogo-ejercicio h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  #dialogo-ejercicio h3 {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--tenue);
+    margin: 16px 0 6px;
+  }
+  #ej-enunciado, .caso-campo {
+    width: 100%;
+    font: inherit;
+    font-size: 13px;
+    padding: 6px 8px;
+    border: 1px solid var(--borde);
+    border-radius: 6px;
+    background: var(--fondo);
+    color: var(--texto);
+    resize: vertical;
+  }
+  .caso-campo { font-family: var(--mono); font-size: 12px; }
+  .ej-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  #ej-casos { display: flex; flex-direction: column; gap: 10px; margin-bottom: 8px; }
+  .ej-caso {
+    border: 1px solid var(--borde);
+    border-left: 3px solid var(--sx-funcion);
+    border-radius: 6px;
+    padding: 9px 11px;
+    background: var(--fondo);
+  }
+  .ej-caso-cabecera { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .ej-caso-cabecera input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 13px;
+    padding: 3px 7px;
+    border: 1px solid var(--borde);
+    border-radius: 5px;
+    background: var(--panel);
+    color: var(--texto);
+  }
+  .ej-caso-par { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  @media (max-width: 560px) { .ej-caso-par { grid-template-columns: 1fr; } }
+  .ej-caso-par label { font-size: 11px; color: var(--tenue); display: block; margin-bottom: 2px; }
+  #ej-aviso:empty { display: none; }
+  #ej-aviso.roto { color: var(--err); white-space: pre-wrap; }
+  #ej-aviso.bien { color: var(--ok); }
+
   #sala-feed { display: flex; flex-direction: column; gap: 6px; }
   .feed-item {
     display: flex;
@@ -555,6 +623,7 @@
     </div>
 
     <div class="sala-botones">
+      <button id="btn-crear-ejercicio">Crear ejercicio…</button>
       <button id="btn-compartir">Compartir en la sala</button>
       <button id="btn-salir-sesion">Cerrar sesión</button>
     </div>
@@ -563,6 +632,38 @@
     <h3>Publicado en la sala</h3>
     <div id="sala-feed"></div>
   </div>
+</dialog>
+
+<dialog id="dialogo-ejercicio">
+  <div id="sala-cabecera">
+    <h2>Crear ejercicio</h2>
+    <button id="btn-cerrar-ejercicio" title="Cerrar">✕</button>
+  </div>
+
+  <div class="sala-fila">
+    <input id="ej-titulo" placeholder="Título (por ejemplo: Área de un círculo)" autocomplete="off">
+  </div>
+  <textarea id="ej-enunciado" rows="4"
+    placeholder="Enunciado: qué tiene que hacer el alumno."></textarea>
+
+  <label class="ej-check">
+    <input type="checkbox" id="ej-incluir-codigo" checked>
+    Incluir el seudocódigo que tengo en el editor
+  </label>
+
+  <h3>Casos de prueba</h3>
+  <p class="vacio" id="ej-nota-casos">
+    Con casos, el alumno puede darle a Verificar y el editor le dice si acertó.
+    Sin casos, el ejercicio es un problema abierto: se resuelve y se ejecuta.
+  </p>
+  <div id="ej-casos"></div>
+  <button id="ej-agregar-caso">Agregar caso</button>
+
+  <div class="sala-botones">
+    <button id="ej-guardar">Guardar en mis ejercicios</button>
+    <button id="ej-publicar">Publicar en la sala</button>
+  </div>
+  <p id="ej-aviso" class="vacio"></p>
 </dialog>
 
 <footer>

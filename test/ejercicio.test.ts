@@ -7,6 +7,7 @@ import { parsear } from "../src/parser.ts";
 import { verificar as verificarTipos } from "../src/verificador.ts";
 import {
   comparar,
+  escribirEjercicio,
   explicar,
   leerEjercicio,
   verificarSolucion,
@@ -151,6 +152,49 @@ ${F}
   });
 });
 
+describe("escritura del formato", () => {
+  test("lo escrito se vuelve a leer igual", () => {
+    const original = {
+      titulo: "Área de un círculo",
+      enunciado: "Leé el radio y escribí el área.\n\nUsá PI.",
+      comparacion: "contiene" as const,
+      decimales: 2,
+      casos: [
+        { nombre: "radio 1", entrada: ["1"], salidaEsperada: "El área es: 3.14" },
+        { nombre: "radio 0", entrada: ["0"], salidaEsperada: "El área es: 0.00" },
+      ],
+    };
+
+    const leido = leerEjercicio(escribirEjercicio(original));
+    assert.ok(leido.ok, "el .md generado tiene que ser válido");
+    assert.equal(leido.ejercicio.titulo, original.titulo);
+    assert.equal(leido.ejercicio.enunciado, original.enunciado);
+    assert.equal(leido.ejercicio.comparacion, "contiene");
+    assert.equal(leido.ejercicio.decimales, 2);
+    assert.deepEqual(leido.ejercicio.casos, original.casos);
+  });
+
+  test("un ejercicio de solo enunciado también da un .md válido", () => {
+    const leido = leerEjercicio(
+      escribirEjercicio({ titulo: "Problema abierto", enunciado: "Resolvelo.", casos: [] }),
+    );
+    assert.ok(leido.ok);
+    assert.equal(leido.ejercicio.casos.length, 0);
+  });
+
+  test("un ``` en el texto no parte el archivo", () => {
+    const leido = leerEjercicio(
+      escribirEjercicio({
+        titulo: "Con cercas",
+        enunciado: "No escribas ``` acá.",
+        casos: [{ nombre: "c", entrada: ["1"], salidaEsperada: "1" }],
+      }),
+    );
+    assert.ok(leido.ok, "el ``` del texto no puede romper el formato");
+    assert.equal(leido.ejercicio.casos.length, 1);
+  });
+});
+
 describe("errores de formato del ejercicio", () => {
   function errores(texto: string): string[] {
     const leido = leerEjercicio(texto);
@@ -163,8 +207,11 @@ describe("errores de formato del ejercicio", () => {
     assert.ok(errores(`## Caso: c\n\n${F}entrada\n1\n${F}\n\n${F}salida\n1\n${F}\n`).some((m) => /falta el título/.test(m)));
   });
 
-  test("sin casos", () => {
-    assert.ok(errores("# Solo título\n\nUn enunciado.\n").some((m) => /ningún caso de prueba/.test(m)));
+  test("sin casos es válido: es un problema para resolver a mano", () => {
+    const leido = leerEjercicio("# Solo título\n\nUn enunciado.\n");
+    assert.ok(leido.ok);
+    assert.equal(leido.ejercicio.casos.length, 0);
+    assert.equal(leido.ejercicio.enunciado, "Un enunciado.");
   });
 
   test("caso sin bloque de salida", () => {
@@ -266,6 +313,13 @@ describe("modos de comparación", () => {
 });
 
 describe("verificación de soluciones", () => {
+  test("un ejercicio sin casos no se da por aprobado", () => {
+    const sinCasos = ejercicioDe("# Problema abierto\n\nEscribí lo que quieras.\n");
+    const resultado = verificarSolucion(compilar("Inicio\n    Escribir 1\nFin"), sinCasos);
+    assert.equal(resultado.total, 0);
+    assert.equal(resultado.aprobado, false, "0 de 0 no es aprobado: no se corrió nada");
+  });
+
   const ejercicio = ejercicioDe(`# Suma
 
 Comparación: exacta

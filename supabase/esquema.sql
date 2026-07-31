@@ -94,9 +94,13 @@ create table if not exists programas (
 -- acompaña al ejercicio: la solución de referencia, o el andamiaje desde el que
 -- se arranca. Va aparte y puede ser nulo porque un ejercicio se sostiene solo
 -- con su enunciado; el código es opcional, igual que en `soluciones/`.
+-- 'sala' nula significa que el ejercicio es personal: está en el taller privado
+-- de quien lo escribió y nadie más lo ve. Es donde se guardan los borradores y
+-- las copias que un alumno se lleva de la sala. Publicar es, literalmente,
+-- ponerle una sala.
 create table if not exists ejercicios (
   id text primary key default id_corto(),
-  sala uuid not null references salas on delete cascade,
+  sala uuid references salas on delete cascade,
   autor uuid not null references perfiles on delete cascade,
   titulo text not null,
   contenido text not null,
@@ -191,13 +195,22 @@ drop policy if exists "borrar programa" on programas;
 create policy "borrar programa" on programas
   for delete to authenticated using (autor = auth.uid() or es_docente(sala));
 
+-- Se ve un ejercicio si está publicado en una sala tuya, o si es tuyo y privado.
 drop policy if exists "leer ejercicios de mis salas" on ejercicios;
 create policy "leer ejercicios de mis salas" on ejercicios
-  for select to authenticated using (es_miembro(sala));
+  for select to authenticated
+  using (
+    (sala is not null and es_miembro(sala))
+    or (sala is null and autor = auth.uid())
+  );
 
 drop policy if exists "publicar ejercicio" on ejercicios;
 create policy "publicar ejercicio" on ejercicios
-  for insert to authenticated with check (es_miembro(sala) and autor = auth.uid());
+  for insert to authenticated
+  with check (
+    autor = auth.uid()
+    and (sala is null or es_miembro(sala))
+  );
 
 drop policy if exists "editar mi ejercicio" on ejercicios;
 create policy "editar mi ejercicio" on ejercicios
@@ -205,7 +218,8 @@ create policy "editar mi ejercicio" on ejercicios
 
 drop policy if exists "borrar ejercicio" on ejercicios;
 create policy "borrar ejercicio" on ejercicios
-  for delete to authenticated using (autor = auth.uid() or es_docente(sala));
+  for delete to authenticated
+  using (autor = auth.uid() or (sala is not null and es_docente(sala)));
 
 -- ------------------------------------------------------------------
 -- Operaciones que no se pueden expresar como política

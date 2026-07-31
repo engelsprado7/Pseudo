@@ -10,13 +10,16 @@
  * núcleo, que es la condición que se puso desde el principio.
  */
 import { hayNube, leerConfig } from "./nube.ts";
+import { abrirEditorDeEjercicio } from "./editor-ejercicio.ts";
 import { alCambiarSesion, entrar, salir, usuarioActual, type Usuario } from "./auth.ts";
 import {
   compartirPrograma,
   crearSala,
   escucharSala,
+  guardarEjercicioPersonal,
   listarEjercicios,
   listarProgramas,
+  misEjercicios,
   misSalas,
   publicarEjercicio,
   traerEjercicio,
@@ -50,7 +53,7 @@ export interface Enlace {
 
 const CLAVE_SALA = "pseudo:sala";
 
-type ItemFeed = Publicacion & { tipo: "ejercicio" | "programa" };
+type ItemFeed = Publicacion & { tipo: "ejercicio" | "programa" | "personal" };
 
 export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
   if (!(await hayNube())) return;
@@ -129,7 +132,12 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
       // trae casos de prueba, así que se puede corregir solo.
       const etiqueta = document.createElement("span");
       etiqueta.className = "sala-etiqueta";
-      etiqueta.textContent = item.tipo === "ejercicio" ? "verificable" : "código";
+      etiqueta.textContent =
+        item.tipo === "personal"
+          ? "sin publicar"
+          : item.tipo === "ejercicio"
+            ? "verificable"
+            : "código";
 
       const autor = document.createElement("span");
       autor.className = "feed-autor";
@@ -144,22 +152,31 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
   // --- Datos ---
 
   async function refrescarFeed(): Promise<void> {
-    if (salaActual === null) {
-      pintarFeed([]);
-      return;
-    }
-    const [ejercicios, programas] = await Promise.all([
-      listarEjercicios(salaActual),
-      listarProgramas(salaActual),
-    ]);
-
     const items: ItemFeed[] = [];
-    if (ejercicios.ok) items.push(...ejercicios.dato.map((p) => ({ ...p, tipo: "ejercicio" as const })));
-    if (programas.ok) items.push(...programas.dato.map((p) => ({ ...p, tipo: "programa" as const })));
+
+    // Los propios sin publicar se ven siempre, incluso sin estar en una sala:
+    // son el taller de uno y no dependen de la clase.
+    const propios = await misEjercicios();
+    if (propios.ok) {
+      items.push(...propios.dato.map((p) => ({ ...p, tipo: "personal" as const })));
+    }
+
+    if (salaActual !== null) {
+      const [ejercicios, programas] = await Promise.all([
+        listarEjercicios(salaActual),
+        listarProgramas(salaActual),
+      ]);
+      if (ejercicios.ok) {
+        items.push(...ejercicios.dato.map((p) => ({ ...p, tipo: "ejercicio" as const })));
+      }
+      if (programas.ok) {
+        items.push(...programas.dato.map((p) => ({ ...p, tipo: "programa" as const })));
+      }
+      if (!ejercicios.ok) enlace.avisar(ejercicios.mensaje + "\n", "roto");
+    }
+
     items.sort((a, b) => b.creado.localeCompare(a.creado));
     pintarFeed(items);
-
-    if (!ejercicios.ok) enlace.avisar(ejercicios.mensaje + "\n", "roto");
   }
 
   async function cambiarDeSala(id: string | null): Promise<void> {
@@ -188,7 +205,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
   }
 
   async function abrirItem(item: ItemFeed): Promise<void> {
-    if (item.tipo === "ejercicio") {
+    if (item.tipo === "ejercicio" || item.tipo === "personal") {
       const r = await traerEjercicio(item.id);
       if (!r.ok) {
         enlace.avisar(r.mensaje + "\n", "roto");
@@ -242,6 +259,35 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     .addEventListener("click", () => void salir());
 
   selector.addEventListener("change", () => void cambiarDeSala(selector.value || null));
+
+  document
+    .querySelector<HTMLButtonElement>("#btn-crear-ejercicio")!
+    .addEventListener("click", () => {
+      abrirEditorDeEjercicio({
+        codigoActual: enlace.codigoActual,
+
+        async guardarPersonal(titulo, contenido, codigo) {
+          const r = await guardarEjercicioPersonal(titulo, contenido, codigo);
+          if (!r.ok) return r.mensaje;
+          enlace.avisar(`Se guardó "${titulo}" en tus ejercicios.\n`, "fin");
+          return null;
+        },
+
+        // Sin sala elegida el botón de publicar queda deshabilitado; pasar
+        // `null` es lo que se lo indica al formulario.
+        publicarEnSala:
+          salaActual === null
+            ? null
+            : async (titulo, contenido, codigo) => {
+                const r = await publicarEjercicio(salaActual!, titulo, contenido, codigo);
+                if (!r.ok) return r.mensaje;
+                enlace.avisar(`Se publicó "${titulo}" en la sala.\n`, "fin");
+                return null;
+              },
+
+        alGuardar: () => void refrescarFeed(),
+      });
+    });
 
   document.querySelector<HTMLButtonElement>("#btn-crear-sala")!.addEventListener("click", () => {
     const nombre = nombreNueva.value.trim();
