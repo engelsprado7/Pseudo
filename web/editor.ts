@@ -39,6 +39,9 @@ import {
 import { iniciarNubeUI } from "./nube-ui.ts";
 import { icono } from "./iconos.ts";
 
+/** Punto de partida de un programa en blanco. El cursor va en la línea de adentro. */
+const ESQUELETO = "Inicio\n    \nFin\n";
+
 const EJEMPLO = `// Promedio de notas de un grupo, con clasificación.
 
 Funcion promedio <- CalcularPromedio(Por Referencia notas, cantidad Como Entero)
@@ -733,7 +736,11 @@ function mostrarEnunciado(ejercicio: Ejercicio): void {
 
   const nota = document.createElement("p");
   nota.style.color = "var(--tenue)";
-  nota.textContent = `${ejercicio.casos.length} ${ejercicio.casos.length === 1 ? "caso" : "casos"} de prueba · comparación ${ejercicio.comparacion}`;
+  const n = ejercicio.casos.length;
+  nota.textContent =
+    n === 0
+      ? "Sin casos de prueba: resolvelo y probalo con Ejecutar."
+      : `${n} ${n === 1 ? "caso" : "casos"} de prueba · comparación ${ejercicio.comparacion}`;
   panelEnunciado.appendChild(nota);
 }
 
@@ -920,7 +927,9 @@ async function mostrarEjercicio(archivo: string): Promise<boolean> {
     return false;
   }
   ejercicioActual = cargado.ejercicio;
-  btnVerificar.hidden = false;
+  // Sin casos no hay nada que corregir: ofrecer Verificar sería prometer algo
+  // que el ejercicio no puede cumplir.
+  btnVerificar.hidden = cargado.ejercicio.casos.length === 0;
   mostrarEnunciado(cargado.ejercicio);
   ajustarPanelInferior();
   return true;
@@ -1137,7 +1146,7 @@ document.querySelector("#btn-limpiar")!.addEventListener("click", () => {
   nombreArchivo = conExtension("programa");
   manejadorArchivo = undefined;
   vista.dispatch({
-    changes: { from: 0, to: vista.state.doc.length, insert: "Inicio\n    \nFin\n" },
+    changes: { from: 0, to: vista.state.doc.length, insert: ESQUELETO },
     selection: { anchor: 11 },
   });
   referenciaGuardada = "";
@@ -1245,11 +1254,7 @@ void iniciarNubeUI({
       anexar(`El ejercicio "${titulo}" tiene problemas de formato:\n${detalle}\n`, "roto");
       return false;
     }
-    // Solo se pregunta si de verdad se va a pisar el editor: un ejercicio
-    // publicado sin código no toca lo que el alumno tenga escrito.
-    if (codigo !== null && !confirmarDescarte(`Abrir "${leido.ejercicio.titulo}"`)) {
-      return false;
-    }
+    if (!confirmarDescarte(`Abrir "${leido.ejercicio.titulo}"`)) return false;
 
     // Viene de la sala, no de `ejercicios/`: el selector local no lo tiene, así
     // que se deja en "Sin ejercicio" para no mentir sobre qué está abierto.
@@ -1257,23 +1262,30 @@ void iniciarNubeUI({
     ejercicioSeleccionado = "";
     localStorage.removeItem("pseudo:ejercicio");
 
-    if (codigo !== null) {
-      nombreArchivo = conExtension(titulo);
-      manejadorArchivo = undefined;
-      reemplazarContenido(codigo);
-      referenciaGuardada = codigo;
-      refrescarCabeceraArchivo();
-      recordarSesion();
-    }
+    // Abrir un ejercicio siempre cambia el editor, traiga código o no.
+    //
+    // Antes, sin código, el editor quedaba tal cual: el panel mostraba un
+    // ejercicio y la barra el nombre de otro archivo, con el programa anterior
+    // adentro. Parecía que abrir no había hecho nada. Sin código lo que
+    // corresponde es una hoja limpia para resolverlo, no la solución de un
+    // ejercicio distinto.
+    const contenido = codigo ?? ESQUELETO;
+    nombreArchivo = conExtension(titulo);
+    manejadorArchivo = undefined;
+    reemplazarContenido(contenido);
+    referenciaGuardada = contenido;
+    refrescarCabeceraArchivo();
+    recordarSesion();
 
     ejercicioActual = leido.ejercicio;
-    btnVerificar.hidden = false;
+    btnVerificar.hidden = leido.ejercicio.casos.length === 0;
     mostrarEnunciado(leido.ejercicio);
     ajustarPanelInferior();
+    consola.textContent = "";
     anexar(
       codigo === null
-        ? `Se abrió el ejercicio "${leido.ejercicio.titulo}" de la sala (sin código).\n`
-        : `Se abrió el ejercicio "${leido.ejercicio.titulo}" de la sala.\n`,
+        ? `Se abrió "${leido.ejercicio.titulo}". Escribí tu solución acá.\n`
+        : `Se abrió "${leido.ejercicio.titulo}" con el código que trae.\n`,
       "fin",
     );
     return true;
