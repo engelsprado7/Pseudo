@@ -1089,8 +1089,24 @@ notaGuardado.textContent = soportaGuardadoDirecto()
   : "en este navegador, Guardar descarga una copia";
 
 /** Pide confirmación si hay cambios sin guardar. `true` = seguir adelante. */
+/**
+ * Pide confirmación solo cuando de verdad se va a perder algo.
+ *
+ * Con un ejercicio abierto, lo escrito queda guardado bajo su propia clave y
+ * vuelve al reabrirlo, así que preguntar "se van a perder" sería mentira —y una
+ * mentira que enseña a ignorar los avisos, que es lo peor que puede pasarle a
+ * un aviso—. Se pregunta cuando hay un archivo de disco abierto, porque ahí lo
+ * que quedó viejo es el archivo y guardarlo sigue siendo decisión de quien
+ * escribe.
+ */
 function confirmarDescarte(accion: string): boolean {
   if (!hayCambiosSinGuardar()) return true;
+
+  if (claveDelEjercicio !== null && manejadorArchivo === undefined) {
+    guardarTrabajo();
+    return true;
+  }
+
   return confirm(
     `Hay cambios sin guardar en '${nombreArchivo}'.\n\n¿${accion} de todos modos? Se van a perder.`,
   );
