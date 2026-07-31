@@ -373,11 +373,17 @@
   .resumen.mal { color: var(--err); }
 
   /* --- Sala de clase --- */
+  /* El 'display' va en [open] y no en el selector suelto: el navegador oculta
+     los <dialog> cerrados con 'display: none', y cualquier display acá lo pisa.
+     Con eso el diálogo quedaba visible siempre —aparecía solo al recargar y el
+     botón de cerrar no parecía hacer nada, aunque el diálogo sí se cerraba. */
+  #dialogo-sala[open] {
+    display: flex;
+    flex-direction: column;
+  }
   #dialogo-sala {
     width: min(600px, 94vw);
     max-height: 88vh;
-    display: flex;
-    flex-direction: column;
     padding: 0;
     border: none;
     border-radius: 14px;
@@ -637,6 +643,59 @@
   .feed-accion.destacada { color: var(--sx-funcion); font-weight: 500; }
   .feed-accion.peligro:hover { color: var(--err); border-color: var(--err); }
 
+  /* --- Movimiento --- */
+  /* Sutil y corto: la animación tiene que hacer legible de dónde salió una
+     cosa, no hacerse notar. Todo por debajo de 200 ms. */
+
+  @keyframes aparecer-dialogo {
+    from { opacity: 0; transform: translateY(8px) scale(.985); }
+    to   { opacity: 1; transform: none; }
+  }
+  @keyframes aparecer-fondo {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes aparecer-fila {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  dialog[open] { animation: aparecer-dialogo .18s cubic-bezier(.2, .8, .3, 1); }
+  dialog[open]::backdrop { animation: aparecer-fondo .18s ease; }
+
+  /* El retraso escalonado hace que la lista se lea de arriba abajo en vez de
+     aparecer de golpe. Se corta a los seis: más que eso ya es esperar. */
+  .feed-fila { animation: aparecer-fila .16s ease both; }
+  .feed-fila:nth-child(2) { animation-delay: .02s; }
+  .feed-fila:nth-child(3) { animation-delay: .04s; }
+  .feed-fila:nth-child(4) { animation-delay: .06s; }
+  .feed-fila:nth-child(5) { animation-delay: .08s; }
+  .feed-fila:nth-child(n+6) { animation-delay: .10s; }
+
+  button {
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+  }
+  button:active { transform: translateY(1px); }
+
+  .cm-linea-paso { transition: background-color .15s ease; }
+
+  /* Quien pide menos movimiento no debería recibir ninguno. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+    }
+  }
+
+  /* Los iconos se alinean con el texto sin empujarlo. */
+  button > svg { flex: none; vertical-align: -2px; }
+  .feed-accion, .sala-botones button, #btn-gestionar-sala, #btn-salir-sesion {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
   footer {
     padding: 8px 16px;
     border-top: 1px solid var(--borde);
@@ -660,21 +719,21 @@
   <span id="marca-sucio" hidden title="Hay cambios sin guardar">●</span>
   <span id="estado" class="estado">…</span>
   <span class="separador"></span>
-  <button id="btn-abrir" title="Ctrl+O">Abrir</button>
-  <button id="btn-guardar" title="Ctrl+S">Guardar</button>
-  <button id="btn-guardar-como">Guardar como…</button>
+  <button type="button" id="btn-abrir" title="Ctrl+O">Abrir</button>
+  <button type="button" id="btn-guardar" title="Ctrl+S">Guardar</button>
+  <button type="button" id="btn-guardar-como">Guardar como…</button>
   <span class="separador"></span>
-  <button id="btn-formatear" title="Shift+Alt+F">Formatear</button>
-  <button id="btn-ejemplo">Ejemplo</button>
-  <button id="btn-limpiar">Nuevo</button>
+  <button type="button" id="btn-formatear" title="Shift+Alt+F">Formatear</button>
+  <button type="button" id="btn-ejemplo">Ejemplo</button>
+  <button type="button" id="btn-limpiar">Nuevo</button>
   <select id="selector-ejercicio" aria-label="Ejercicio">
     <option value="">Sin ejercicio</option>
   </select>
-  <button id="btn-sala" hidden title="Sala de clase: publicar y cargar ejercicios">Sala</button>
-  <button id="btn-ejecutar" title="Ctrl+Enter">Ejecutar</button>
-  <button id="btn-paso" title="Ejecutar mostrando cada paso y las variables">Paso a paso</button>
-  <button id="btn-verificar" hidden title="Ctrl+Shift+Enter">Verificar</button>
-  <button id="btn-detener" hidden>Detener</button>
+  <button type="button" id="btn-sala" hidden title="Sala de clase: publicar y cargar ejercicios">Sala</button>
+  <button type="button" id="btn-ejecutar" title="Ctrl+Enter">Ejecutar</button>
+  <button type="button" id="btn-paso" title="Ejecutar mostrando cada paso y las variables">Paso a paso</button>
+  <button type="button" id="btn-verificar" hidden title="Ctrl+Shift+Enter">Verificar</button>
+  <button type="button" id="btn-detener" hidden>Detener</button>
 </header>
 
 <main>
@@ -689,20 +748,20 @@
       <div id="fila-entrada" hidden>
         <label id="etiqueta-entrada" for="campo-entrada">Valor:</label>
         <input id="campo-entrada" autocomplete="off" spellcheck="false">
-        <button id="btn-enviar">Enviar</button>
+        <button type="button" id="btn-enviar">Enviar</button>
       </div>
     </section>
     <section id="panel-problemas">
       <div id="cabecera-panel">
         <h2 id="titulo-panel-inferior">Problemas</h2>
         <div id="pestanas-panel" hidden role="tablist">
-          <button id="pestana-ejercicio" class="pestana" role="tab">Ejercicio</button>
-          <button id="pestana-problemas" class="pestana" role="tab">Problemas</button>
+          <button type="button" id="pestana-ejercicio" class="pestana" role="tab">Ejercicio</button>
+          <button type="button" id="pestana-problemas" class="pestana" role="tab">Problemas</button>
         </div>
       </div>
       <div id="barra-paso" hidden>
-        <button id="btn-paso-siguiente" title="Ejecutar la siguiente sentencia">Siguiente ▸</button>
-        <button id="btn-paso-play" title="Avanzar solo">Reproducir</button>
+        <button type="button" id="btn-paso-siguiente" title="Ejecutar la siguiente sentencia">Siguiente ▸</button>
+        <button type="button" id="btn-paso-play" title="Avanzar solo">Reproducir</button>
         <label id="etiqueta-velocidad">Velocidad
           <input id="paso-velocidad" type="range" min="1" max="10" value="5" aria-label="Velocidad">
         </label>
@@ -717,14 +776,14 @@
 <dialog id="dialogo-sala">
   <div id="sala-cabecera">
     <h2>Sala de clase</h2>
-    <button id="btn-cerrar-sala" title="Cerrar">✕</button>
+    <button type="button" id="btn-cerrar-sala" title="Cerrar">✕</button>
   </div>
 
   <div id="sala-sin-sesion">
     <p class="vacio">Iniciá sesión para publicar ejercicios y verlos aparecer en vivo.</p>
     <div class="sala-botones">
-      <button id="btn-entrar-google">Entrar con Google</button>
-      <button id="btn-entrar-microsoft">Entrar con Microsoft</button>
+      <button type="button" id="btn-entrar-google">Entrar con Google</button>
+      <button type="button" id="btn-entrar-microsoft">Entrar con Microsoft</button>
     </div>
   </div>
 
@@ -732,23 +791,23 @@
     <div id="sala-barra">
       <select id="sala-selector" aria-label="Sala actual"></select>
       <span id="sala-codigo" class="pastilla"></span>
-      <button id="btn-gestionar-sala" class="sutil" title="Crear una sala o unirte a otra">Salas…</button>
+      <button type="button" id="btn-gestionar-sala" class="sutil" title="Crear una sala o unirte a otra">Salas…</button>
     </div>
 
     <div id="sala-gestion" hidden>
       <div class="sala-fila">
         <input id="sala-nombre-nueva" placeholder="Nombre de la sala nueva" autocomplete="off">
-        <button id="btn-crear-sala">Crear</button>
+        <button type="button" id="btn-crear-sala">Crear</button>
       </div>
       <div class="sala-fila">
         <input id="sala-codigo-unirse" placeholder="Código para unirte" autocomplete="off">
-        <button id="btn-unirse-sala">Unirme</button>
+        <button type="button" id="btn-unirse-sala">Unirme</button>
       </div>
     </div>
 
     <div class="sala-botones">
-      <button id="btn-crear-ejercicio" class="primario">Crear ejercicio</button>
-      <button id="btn-compartir">Compartir mi solución</button>
+      <button type="button" id="btn-crear-ejercicio" class="primario">Crear ejercicio</button>
+      <button type="button" id="btn-compartir">Compartir mi solución</button>
     </div>
 
     <div id="sala-secciones"></div>
@@ -756,14 +815,14 @@
 
   <div id="sala-pie">
     <span id="sala-usuario"></span>
-    <button id="btn-salir-sesion" class="sutil">Cerrar sesión</button>
+    <button type="button" id="btn-salir-sesion" class="sutil">Cerrar sesión</button>
   </div>
 </dialog>
 
 <dialog id="dialogo-ejercicio">
   <div id="sala-cabecera">
     <h2>Crear ejercicio</h2>
-    <button id="btn-cerrar-ejercicio" title="Cerrar">✕</button>
+    <button type="button" id="btn-cerrar-ejercicio" title="Cerrar">✕</button>
   </div>
 
   <div class="sala-fila">
@@ -783,11 +842,11 @@
     Sin casos, el ejercicio es un problema abierto: se resuelve y se ejecuta.
   </p>
   <div id="ej-casos"></div>
-  <button id="ej-agregar-caso">Agregar caso</button>
+  <button type="button" id="ej-agregar-caso">Agregar caso</button>
 
   <div class="sala-botones">
-    <button id="ej-guardar">Guardar en mis ejercicios</button>
-    <button id="ej-publicar">Publicar en la sala</button>
+    <button type="button" id="ej-guardar">Guardar en mis ejercicios</button>
+    <button type="button" id="ej-publicar">Publicar en la sala</button>
   </div>
   <p id="ej-aviso" class="vacio"></p>
 </dialog>

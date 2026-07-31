@@ -10,6 +10,7 @@
  * núcleo, que es la condición que se puso desde el principio.
  */
 import { hayNube, leerConfig } from "./nube.ts";
+import { icono } from "./iconos.ts";
 import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercicio.ts";
 import { alCambiarSesion, entrar, salir, usuarioActual, type Usuario } from "./auth.ts";
 import {
@@ -60,6 +61,27 @@ export interface Enlace {
 const CLAVE_SALA = "pseudo:sala";
 
 type ItemFeed = Publicacion & { tipo: "ejercicio" | "programa" | "personal" };
+
+/**
+ * Cierra un diálogo al hacer clic fuera de su recuadro.
+ *
+ * `<dialog>` no lo hace solo: el fondo oscuro es parte del propio diálogo, así
+ * que un clic ahí llega con el diálogo como blanco. Se compara contra el
+ * rectángulo porque es la única forma de distinguir el fondo del contenido.
+ *
+ * Vale la pena porque intentar cerrar clicando afuera es lo primero que hace
+ * todo el mundo, y cuando no pasa nada la sensación es que la aplicación se
+ * colgó. Escape ya funciona de fábrica.
+ */
+function cerrarConClicAfuera(dialogo: HTMLDialogElement): void {
+  dialogo.addEventListener("click", (e) => {
+    if (e.target !== dialogo) return;
+    const r = dialogo.getBoundingClientRect();
+    const afuera =
+      e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    if (afuera) dialogo.close();
+  });
+}
 
 export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
   if (!(await hayNube())) return;
@@ -121,11 +143,12 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     texto: string,
     ayuda: string,
     alHacerClic: () => void,
+    nombreIcono: string,
     clase = "",
   ): HTMLButtonElement {
     const b = document.createElement("button");
     b.className = `feed-accion ${clase}`.trim();
-    b.textContent = texto;
+    b.append(icono(nombreIcono), document.createTextNode(texto));
     b.title = ayuda;
     b.addEventListener("click", alHacerClic);
     return b;
@@ -160,22 +183,22 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
       // Publicar mueve el borrador a la sala; no crea una copia.
       if (salaActual !== null) {
         acciones.appendChild(
-          accion("Publicar", "Ponerlo en la sala para que lo vean", () => void publicarItem(item), "destacada"),
+          accion("Publicar", "Ponerlo en la sala para que lo vean", () => void publicarItem(item), "publicar", "destacada"),
         );
       }
-      acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item)));
-      acciones.appendChild(accion("Borrar", "Eliminar este borrador", () => void borrarItem(item), "peligro"));
+      acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item), "editar"));
+      acciones.appendChild(accion("Borrar", "Eliminar este borrador", () => void borrarItem(item), "borrar", "peligro"));
     } else if (item.tipo === "ejercicio") {
       if (esMio) {
-        acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item)));
+        acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item), "editar"));
         acciones.appendChild(
-          accion("Despublicar", "Sacarlo de la sala y volverlo borrador", () => void despublicarItem(item)),
+          accion("Despublicar", "Sacarlo de la sala y volverlo borrador", () => void despublicarItem(item), "bajar"),
         );
       } else {
-        acciones.appendChild(accion("Copiar", "Guardar una copia en mis borradores", () => void copiarItem(item)));
+        acciones.appendChild(accion("Copiar", "Guardar una copia en mis borradores", () => void copiarItem(item), "copiar"));
       }
     } else if (esMio) {
-      acciones.appendChild(accion("Borrar", "Quitar mi solución de la sala", () => void borrarItem(item), "peligro"));
+      acciones.appendChild(accion("Borrar", "Quitar mi solución de la sala", () => void borrarItem(item), "borrar", "peligro"));
     }
 
     if (acciones.childElementCount > 0) fila.appendChild(acciones);
@@ -356,6 +379,23 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
 
   // --- Eventos ---
 
+  // Iconos en los botones fijos del diálogo. Se ponen desde acá y no en el HTML
+  // para que exista un solo juego de iconos y no dos formas de dibujarlos.
+  for (const [selector, nombre] of [
+    ["#btn-cerrar-sala", "cerrar"],
+    ["#btn-cerrar-ejercicio", "cerrar"],
+    ["#btn-crear-ejercicio", "mas"],
+    ["#btn-compartir", "compartir"],
+    ["#btn-gestionar-sala", "salas"],
+    ["#btn-salir-sesion", "salir"],
+  ] as const) {
+    const b = document.querySelector<HTMLButtonElement>(selector);
+    if (b === null) continue;
+    // El de cerrar es solo el icono; el resto lo lleva delante del texto.
+    if (selector.startsWith("#btn-cerrar")) b.textContent = "";
+    b.prepend(icono(nombre, selector.startsWith("#btn-cerrar") ? 15 : 13));
+  }
+
   btnSala.addEventListener("click", () => {
     dialogo.showModal();
     if (usuario !== null) void recargarSalas();
@@ -369,6 +409,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     .addEventListener("click", () => {
       gestion.hidden = !gestion.hidden;
     });
+  cerrarConClicAfuera(dialogo);
   document
     .querySelector<HTMLButtonElement>("#btn-cerrar-sala")!
     .addEventListener("click", () => dialogo.close());

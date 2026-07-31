@@ -11,7 +11,7 @@
     "pretest": "npm run build",
     "test": "node --test test/lexer.test.ts test/parser.test.ts test/verificador.test.ts test/interprete.test.ts test/ejercicio.test.ts test/formato.test.ts test/archivos.test.ts test/compatibilidad-node.test.ts test/humo-web.test.ts",
     "tipos": "tsc --noEmit",
-    "build": "node bin/limpiar.ts && node bin/indice.ts && esbuild web/editor.ts --bundle --splitting --format=esm --target=es2022 --minify --charset=utf8 --entry-names=editor --chunk-names=trozo-[hash] --outdir=sitio && esbuild web/analisis.ts --bundle --format=esm --target=es2022 --charset=utf8 --outfile=sitio/analisis.js && node bin/sitio.ts",
+    "build": "node bin/limpiar.ts && node bin/indice.ts && esbuild web/editor.ts --bundle --splitting --format=esm --target=es2022 --minify --charset=utf8 --entry-names=editor-[hash] --chunk-names=trozo-[hash] --outdir=sitio && esbuild web/analisis.ts --bundle --format=esm --target=es2022 --charset=utf8 --outfile=sitio/analisis.js && node bin/sitio.ts",
     "dev": "npm run build && node bin/servir.ts",
     "tokens": "node bin/tokens.ts",
     "ast": "node bin/ast.ts",

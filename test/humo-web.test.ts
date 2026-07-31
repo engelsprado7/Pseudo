@@ -11,9 +11,15 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 
-const EDITOR = new URL("../sitio/editor.js", import.meta.url);
+// El bundle lleva el hash del contenido en el nombre, así que se busca por
+// patrón. Si no está, las pruebas de más abajo lo dicen con un mensaje claro.
+const SITIO = new URL("../sitio/", import.meta.url);
+const nombreBundle = existsSync(SITIO)
+  ? readdirSync(SITIO).find((f) => /^editor-[A-Z0-9]+\.js$/i.test(f))
+  : undefined;
+const EDITOR = new URL(nombreBundle ?? "editor-inexistente.js", SITIO);
 const ANALISIS = new URL("../sitio/analisis.js", import.meta.url);
 
 describe("bundle del análisis", () => {
@@ -149,7 +155,7 @@ describe("bundle del editor", () => {
   test("existe", () => {
     assert.ok(
       existsSync(EDITOR),
-      "falta sitio/editor.js. 'npm test' lo genera solo; si corrés este archivo directo, hacé 'npm run build' antes.",
+      "falta el bundle sitio/editor-*.js. 'npm test' lo genera solo; si corrés este archivo directo, hacé 'npm run build' antes.",
     );
   });
 
@@ -202,7 +208,16 @@ describe("bundle del editor", () => {
 
   test("el HTML referencia el bundle y trae los controles", () => {
     const html = readFileSync(new URL("../sitio/index.html", import.meta.url), "utf8");
-    assert.match(html, /src="\.\/editor\.js"/);
+
+    // El bundle lleva hash, así que no alcanza con que el src tenga buena pinta:
+    // se comprueba que el archivo al que apunta exista. Un HTML apuntando a un
+    // bundle viejo es exactamente el error que el hash viene a evitar.
+    const src = /src="\.\/(editor-[A-Z0-9]+\.js)"/i.exec(html);
+    assert.ok(src !== null, "el HTML no referencia un bundle con hash");
+    assert.ok(
+      existsSync(new URL(src[1]!, SITIO)),
+      `el HTML apunta a ${src[1]}, que no existe en sitio/`,
+    );
     for (const id of [
       "editor",
       "estado",
