@@ -14,15 +14,19 @@ import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercici
 import { alCambiarSesion, entrar, salir, usuarioActual, type Usuario } from "./auth.ts";
 import {
   actualizarEjercicio,
+  borrarEjercicio,
+  borrarPrograma,
   compartirPrograma,
   copiarEjercicio,
   crearSala,
+  despublicarEjercicio,
   escucharSala,
   guardarEjercicioPersonal,
   listarEjercicios,
   listarProgramas,
   misEjercicios,
   misSalas,
+  publicarBorrador,
   publicarEjercicio,
   traerEjercicio,
   traerPrograma,
@@ -67,8 +71,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
   const elUsuario = document.querySelector<HTMLElement>("#sala-usuario")!;
   const selector = document.querySelector<HTMLSelectElement>("#sala-selector")!;
   const elCodigo = document.querySelector<HTMLElement>("#sala-codigo")!;
-  const feed = document.querySelector<HTMLElement>("#sala-feed")!;
-  const queComparte = document.querySelector<HTMLElement>("#sala-que-comparte")!;
+  const secciones = document.querySelector<HTMLElement>("#sala-secciones")!;
 
   const nombreNueva = document.querySelector<HTMLInputElement>("#sala-nombre-nueva")!;
   const codigoUnirse = document.querySelector<HTMLInputElement>("#sala-codigo-unirse")!;
@@ -113,66 +116,112 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     elCodigo.textContent = actual === undefined ? "" : `código: ${actual.codigo}`;
   }
 
-  function pintarFeed(items: ItemFeed[]): void {
-    feed.textContent = "";
-    if (items.length === 0) {
-      const vacio = document.createElement("p");
-      vacio.className = "vacio";
-      vacio.textContent = "Todavía no hay nada publicado en esta sala.";
-      feed.appendChild(vacio);
-      return;
+  /** Crea un botón de acción para una fila del feed. */
+  function accion(
+    texto: string,
+    ayuda: string,
+    alHacerClic: () => void,
+    clase = "",
+  ): HTMLButtonElement {
+    const b = document.createElement("button");
+    b.className = `feed-accion ${clase}`.trim();
+    b.textContent = texto;
+    b.title = ayuda;
+    b.addEventListener("click", alHacerClic);
+    return b;
+  }
+
+  function filaDeItem(item: ItemFeed): HTMLElement {
+    const fila = document.createElement("div");
+    fila.className = `feed-fila ${item.tipo}`;
+
+    const boton = document.createElement("button");
+    boton.className = "feed-item";
+
+    const titulo = document.createElement("span");
+    titulo.className = "feed-titulo";
+    titulo.textContent = item.titulo;
+
+    const autor = document.createElement("span");
+    autor.className = "feed-autor";
+    autor.textContent = item.autor;
+
+    boton.append(titulo, autor);
+    boton.addEventListener("click", () => void abrirItem(item));
+    fila.appendChild(boton);
+
+    // Las acciones van fuera del botón que abre: un botón dentro de otro no es
+    // HTML válido y el clic se dispararía dos veces.
+    const acciones = document.createElement("div");
+    acciones.className = "feed-acciones";
+    const esMio = item.autorId === usuario?.id;
+
+    if (item.tipo === "personal") {
+      // Publicar mueve el borrador a la sala; no crea una copia.
+      if (salaActual !== null) {
+        acciones.appendChild(
+          accion("Publicar", "Ponerlo en la sala para que lo vean", () => void publicarItem(item), "destacada"),
+        );
+      }
+      acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item)));
+      acciones.appendChild(accion("Borrar", "Eliminar este borrador", () => void borrarItem(item), "peligro"));
+    } else if (item.tipo === "ejercicio") {
+      if (esMio) {
+        acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item)));
+        acciones.appendChild(
+          accion("Despublicar", "Sacarlo de la sala y volverlo borrador", () => void despublicarItem(item)),
+        );
+      } else {
+        acciones.appendChild(accion("Copiar", "Guardar una copia en mis borradores", () => void copiarItem(item)));
+      }
+    } else if (esMio) {
+      acciones.appendChild(accion("Borrar", "Quitar mi solución de la sala", () => void borrarItem(item), "peligro"));
     }
-    for (const item of items) {
-      const boton = document.createElement("button");
-      boton.className = `feed-item ${item.tipo}`;
 
-      const titulo = document.createElement("span");
-      titulo.className = "feed-titulo";
-      titulo.textContent = item.titulo;
+    if (acciones.childElementCount > 0) fila.appendChild(acciones);
+    return fila;
+  }
 
-      // La etiqueta dice lo único que de verdad los diferencia: un ejercicio
-      // trae casos de prueba, así que se puede corregir solo.
-      const etiqueta = document.createElement("span");
-      etiqueta.className = "sala-etiqueta";
-      etiqueta.textContent =
-        item.tipo === "personal"
-          ? "sin publicar"
-          : item.tipo === "ejercicio"
-            ? "verificable"
-            : "código";
+  /**
+   * Dibuja el feed en tres secciones con título.
+   *
+   * Antes era una sola lista con borradores, ejercicios de la sala y código
+   * mezclados: dos cosas parecidas se veían idénticas y no había forma de saber
+   * qué era cada una. Agrupar es lo que hace evidente que un borrador y un
+   * ejercicio publicado son estados distintos de lo mismo.
+   */
+  function pintarFeed(items: ItemFeed[]): void {
+    secciones.textContent = "";
 
-      const autor = document.createElement("span");
-      autor.className = "feed-autor";
-      autor.textContent = item.autor;
+    const grupos: Array<{ tipo: ItemFeed["tipo"]; titulo: string; vacio: string }> = [
+      { tipo: "personal", titulo: "Mis borradores", vacio: "Todavía no escribiste ninguno." },
+      { tipo: "ejercicio", titulo: "Ejercicios de la sala", vacio: "Nadie publicó ejercicios todavía." },
+      { tipo: "programa", titulo: "Soluciones compartidas", vacio: "Nadie compartió su solución todavía." },
+    ];
 
-      boton.append(titulo, etiqueta, autor);
-      boton.addEventListener("click", () => void abrirItem(item));
+    for (const grupo of grupos) {
+      const propios = items.filter((i) => i.tipo === grupo.tipo);
+      // Sin sala, las secciones de la sala no vienen al caso: se ocultan en vez
+      // de mostrar un "no hay nada" que suena a error.
+      if (grupo.tipo !== "personal" && salaActual === null) continue;
 
-      const fila = document.createElement("div");
-      fila.className = "feed-fila";
-      fila.appendChild(boton);
+      const seccion = document.createElement("section");
+      seccion.className = "seccion-feed";
 
-      // Las acciones van fuera del botón que abre: un botón dentro de otro no
-      // es HTML válido y el clic se dispararía dos veces.
-      if (item.tipo !== "programa") {
-        if (item.autorId === usuario?.id) {
-          const editar = document.createElement("button");
-          editar.className = "feed-accion";
-          editar.textContent = "Editar";
-          editar.title = "Cambiar el enunciado o los casos";
-          editar.addEventListener("click", () => void editarItem(item));
-          fila.appendChild(editar);
-        } else {
-          const copiar = document.createElement("button");
-          copiar.className = "feed-accion";
-          copiar.textContent = "Copiar";
-          copiar.title = "Guardar una copia en mis ejercicios";
-          copiar.addEventListener("click", () => void copiarItem(item));
-          fila.appendChild(copiar);
-        }
+      const titulo = document.createElement("h3");
+      titulo.textContent = grupo.titulo;
+      seccion.appendChild(titulo);
+
+      if (propios.length === 0) {
+        const vacio = document.createElement("p");
+        vacio.className = "vacio";
+        vacio.textContent = grupo.vacio;
+        seccion.appendChild(vacio);
+      } else {
+        for (const item of propios) seccion.appendChild(filaDeItem(item));
       }
 
-      feed.appendChild(fila);
+      secciones.appendChild(seccion);
     }
   }
 
@@ -241,6 +290,40 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     abrirFormulario({ id: item.id, contenido: r.dato.contenido, codigo: r.dato.codigo });
   }
 
+  /** Publica un borrador: le pone la sala actual. No lo copia. */
+  async function publicarItem(item: ItemFeed): Promise<void> {
+    if (salaActual === null) return;
+    const r = await publicarBorrador(item.id, salaActual);
+    enlace.avisar(
+      r.ok ? `"${item.titulo}" ya está en la sala.\n` : r.mensaje + "\n",
+      r.ok ? "fin" : "roto",
+    );
+    if (r.ok) await refrescarFeed();
+  }
+
+  async function despublicarItem(item: ItemFeed): Promise<void> {
+    const r = await despublicarEjercicio(item.id);
+    enlace.avisar(
+      r.ok ? `"${item.titulo}" volvió a tus borradores.\n` : r.mensaje + "\n",
+      r.ok ? "fin" : "roto",
+    );
+    if (r.ok) await refrescarFeed();
+  }
+
+  async function borrarItem(item: ItemFeed): Promise<void> {
+    // Borrar no se deshace: se pregunta siempre, aunque sea un clic más.
+    if (!confirm(`¿Borrar "${item.titulo}"? No se puede deshacer.`)) return;
+    const r =
+      item.tipo === "programa"
+        ? await borrarPrograma(item.id)
+        : await borrarEjercicio(item.id);
+    enlace.avisar(
+      r.ok ? `Se borró "${item.titulo}".\n` : r.mensaje + "\n",
+      r.ok ? "fin" : "roto",
+    );
+    if (r.ok) await refrescarFeed();
+  }
+
   /** Se lleva una copia propia de un ejercicio ajeno. */
   async function copiarItem(item: ItemFeed): Promise<void> {
     const r = await copiarEjercicio(item.id);
@@ -273,20 +356,19 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
 
   // --- Eventos ---
 
-  /** Dice de antemano qué va a viajar, para que el botón no sorprenda. */
-  async function pintarQueComparte(): Promise<void> {
-    const abierto = await enlace.ejercicioAbierto();
-    queComparte.textContent =
-      abierto === null
-        ? `Se compartirá tu programa «${enlace.nombreActual()}».`
-        : `Se compartirá el ejercicio «${abierto.titulo}» con sus casos de prueba y tu código.`;
-  }
-
   btnSala.addEventListener("click", () => {
     dialogo.showModal();
-    void pintarQueComparte();
     if (usuario !== null) void recargarSalas();
   });
+
+  // Crear sala y unirse son cosas que se hacen una vez; no merecen ocupar
+  // espacio permanente arriba de lo que se mira todos los días.
+  const gestion = document.querySelector<HTMLElement>("#sala-gestion")!;
+  document
+    .querySelector<HTMLButtonElement>("#btn-gestionar-sala")!
+    .addEventListener("click", () => {
+      gestion.hidden = !gestion.hidden;
+    });
   document
     .querySelector<HTMLButtonElement>("#btn-cerrar-sala")!
     .addEventListener("click", () => dialogo.close());
@@ -386,35 +468,29 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
    * —enunciado, casos y código—, y si no, comparte solo el programa. Nunca hay
    * que elegir entre dos cosas que suenan igual.
    */
+  /**
+   * Comparte el código del editor. Siempre. Sin condiciones ocultas.
+   *
+   * Antes este botón decidía solo entre publicar un ejercicio o compartir un
+   * programa, mirando el desplegable local de ejercicios. Ese desplegable queda
+   * vacío justo cuando se trabaja sobre un ejercicio de la sala, así que hacía
+   * lo contrario de lo esperado en el caso más común y dejaba dos entradas que
+   * parecían la misma cosa. Publicar un ejercicio ahora es una acción sobre el
+   * ejercicio, en su propia fila.
+   */
   document.querySelector<HTMLButtonElement>("#btn-compartir")!.addEventListener("click", () => {
     void (async () => {
       if (salaActual === null) {
         enlace.avisar("Primero entrá a una sala.\n", "aviso");
         return;
       }
-
-      const abierto = await enlace.ejercicioAbierto();
-      if (abierto !== null) {
-        const r = await publicarEjercicio(
-          salaActual,
-          abierto.titulo,
-          abierto.contenido,
-          abierto.codigo,
-        );
-        enlace.avisar(
-          r.ok
-            ? `Se publicó "${abierto.titulo}" con sus casos de prueba y el código.\n`
-            : r.mensaje + "\n",
-          r.ok ? "fin" : "roto",
-        );
-        return;
-      }
-
-      const r = await compartirPrograma(salaActual, enlace.nombreActual(), enlace.codigoActual());
+      const nombre = enlace.nombreActual();
+      const r = await compartirPrograma(salaActual, nombre, enlace.codigoActual());
       enlace.avisar(
-        r.ok ? `Se compartió "${enlace.nombreActual()}" en la sala.\n` : r.mensaje + "\n",
+        r.ok ? `Compartiste "${nombre}" en la sala.\n` : r.mensaje + "\n",
         r.ok ? "fin" : "roto",
       );
+      if (r.ok) await refrescarFeed();
     })();
   });
 

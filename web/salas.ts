@@ -262,6 +262,53 @@ export async function actualizarEjercicio(
 }
 
 /**
+ * Publica un borrador: le pone la sala.
+ *
+ * Es un cambio de estado, no una copia. El ejercicio sale de los borradores y
+ * aparece en la sala siendo la misma fila, así que no hay manera de terminar
+ * con dos versiones de la misma cosa —que es exactamente lo que pasaba cuando
+ * publicar creaba un registro nuevo.
+ */
+export async function publicarBorrador(id: string, sala: string): Promise<Resultado<string>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c.from("ejercicios").update({ sala }).eq("id", id);
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: id };
+}
+
+/** Lo saca de la sala y lo devuelve a borradores. Tampoco copia nada. */
+export async function despublicarEjercicio(id: string): Promise<Resultado<string>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c.from("ejercicios").update({ sala: null }).eq("id", id);
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: id };
+}
+
+/** Borra un ejercicio propio (o cualquiera de la sala, si sos docente). */
+export async function borrarEjercicio(id: string): Promise<Resultado<string>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c.from("ejercicios").delete().eq("id", id);
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: id };
+}
+
+/** Borra un programa compartido. */
+export async function borrarPrograma(id: string): Promise<Resultado<string>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c.from("programas").delete().eq("id", id);
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: id };
+}
+
+/**
  * Copia un ejercicio de la sala al taller privado de quien lo pide.
  *
  * Es una copia de verdad, no un enlace: si el original cambia o se borra, la

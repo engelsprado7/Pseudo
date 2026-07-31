@@ -372,57 +372,148 @@
   .resumen.bien { color: var(--ok); }
   .resumen.mal { color: var(--err); }
 
-  /* Sala de clase */
+  /* --- Sala de clase --- */
   #dialogo-sala {
-    width: min(560px, 92vw);
-    max-height: 86vh;
-    overflow: auto;
-    padding: 16px 18px 18px;
-    border: 1px solid var(--borde);
-    border-radius: 10px;
+    width: min(600px, 94vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    border: none;
+    border-radius: 14px;
     background: var(--panel);
     color: var(--texto);
     font-family: var(--sans);
+    box-shadow: 0 18px 48px rgb(0 0 0 / .22), 0 2px 8px rgb(0 0 0 / .10);
   }
-  #dialogo-sala::backdrop { background: rgb(0 0 0 / .38); }
+  #dialogo-sala::backdrop {
+    background: rgb(20 20 18 / .45);
+    backdrop-filter: blur(2px);
+  }
+
   #sala-cabecera {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 10px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--borde);
   }
-  #dialogo-sala h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  #dialogo-sala h2 { font-size: 16px; font-weight: 600; margin: 0; letter-spacing: -.01em; }
   #dialogo-sala h3 {
-    font-size: 12px;
-    font-weight: 500;
+    font-size: 11px;
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: .05em;
+    letter-spacing: .06em;
     color: var(--tenue);
-    margin: 16px 0 8px;
+    margin: 0 0 8px;
   }
-  #btn-cerrar-sala { padding: 2px 8px; line-height: 1.2; }
+
+  #sala-sin-sesion, #sala-con-sesion { padding: 16px 20px; overflow: auto; flex: 1; }
+  #sala-sin-sesion { text-align: center; padding: 28px 20px 32px; }
+  #sala-sin-sesion .vacio { margin: 0 0 16px; font-size: 14px; line-height: 1.5; }
+  #sala-sin-sesion .sala-botones { justify-content: center; }
+
+  /* Botón de cerrar: círculo discreto que se enciende al pasar por encima. */
+  #btn-cerrar-sala, #btn-cerrar-ejercicio {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border-color: transparent;
+    background: transparent;
+    color: var(--tenue);
+    font-size: 15px;
+    line-height: 1;
+  }
+  #btn-cerrar-sala:hover, #btn-cerrar-ejercicio:hover {
+    background: var(--fondo);
+    border-color: var(--borde);
+    color: var(--texto);
+  }
+
+  /* Barra de sala: el selector manda, el resto acompaña. */
+  #sala-barra { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+  #sala-barra select {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    font-weight: 500;
+  }
+  .pastilla {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: var(--fondo);
+    border: 1px solid var(--borde);
+    color: var(--tenue);
+    white-space: nowrap;
+    user-select: all;
+  }
+  .pastilla:empty { display: none; }
+
+  button.sutil {
+    background: transparent;
+    border-color: transparent;
+    color: var(--tenue);
+  }
+  button.sutil:hover { background: var(--fondo); border-color: var(--borde); color: var(--texto); }
+
+  button.primario {
+    background: var(--sx-funcion);
+    border-color: var(--sx-funcion);
+    color: #fff;
+    font-weight: 500;
+  }
+  button.primario:hover { filter: brightness(1.08); border-color: var(--sx-funcion); }
+
+  #sala-gestion {
+    padding: 12px;
+    margin-bottom: 12px;
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    background: var(--fondo);
+  }
+  #sala-gestion .sala-fila:last-child { margin-bottom: 0; }
 
   .sala-fila { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }
   .sala-fila label { font-size: 12px; color: var(--tenue); }
-  .sala-fila input, .sala-fila select {
+  .sala-fila input, .sala-fila select, #sala-barra select {
     flex: 1;
     min-width: 0;
     font: inherit;
     font-size: 13px;
-    padding: 4px 8px;
+    padding: 6px 9px;
     border: 1px solid var(--borde);
-    border-radius: 6px;
-    background: var(--fondo);
+    border-radius: 7px;
+    background: var(--panel);
     color: var(--texto);
   }
-  .sala-botones { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .sala-etiqueta {
-    font-family: var(--mono);
+  .sala-fila input:focus, #sala-barra select:focus {
+    outline: 2px solid var(--sx-funcion);
+    outline-offset: -1px;
+  }
+  .sala-botones { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .sala-etiqueta { font-family: var(--mono); font-size: 12px; color: var(--tenue); white-space: nowrap; }
+
+  #sala-pie {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 20px;
+    border-top: 1px solid var(--borde);
     font-size: 12px;
     color: var(--tenue);
-    white-space: nowrap;
   }
+  #sala-pie:has(#sala-usuario:empty) { display: none; }
+
+  /* --- Secciones del feed --- */
+  #sala-secciones { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
+  .seccion-feed { display: flex; flex-direction: column; gap: 6px; }
 
   /* Crear ejercicio */
   #dialogo-ejercicio {
@@ -492,28 +583,59 @@
   #ej-aviso.roto { color: var(--err); white-space: pre-wrap; }
   #ej-aviso.bien { color: var(--ok); }
 
-  #sala-feed { display: flex; flex-direction: column; gap: 6px; }
-  .feed-fila { display: flex; gap: 6px; align-items: stretch; }
-  .feed-accion { font-size: 12px; padding: 4px 9px; white-space: nowrap; }
+  .feed-fila {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    border: 1px solid var(--borde);
+    border-left-width: 3px;
+    border-radius: 8px;
+    background: var(--fondo);
+    padding: 4px 6px 4px 0;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  .feed-fila:hover { border-color: var(--tenue); box-shadow: 0 1px 4px rgb(0 0 0 / .06); }
+  .feed-fila.ejercicio { border-left-color: var(--sx-funcion); }
+  .feed-fila.personal  { border-left-color: var(--aviso); }
+  .feed-fila.programa  { border-left-color: var(--ok); }
+
+  /* El botón que abre ocupa todo el espacio libre: el objetivo de clic grande
+     es el que abre, y las acciones quedan chicas a la derecha. */
   .feed-item {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: baseline;
     gap: 8px;
-    padding: 8px 10px;
-    border: 1px solid var(--borde);
-    border-left-width: 3px;
-    border-radius: 6px;
-    background: var(--fondo);
+    padding: 7px 10px;
+    border: none;
+    background: transparent;
+    color: inherit;
     font-size: 13px;
     text-align: left;
     cursor: pointer;
-    width: 100%;
+    border-radius: 6px;
   }
-  .feed-item:hover { border-color: var(--tenue); }
-  .feed-item.ejercicio { border-left-color: var(--sx-funcion); }
-  .feed-item.programa { border-left-color: var(--ok); }
-  .feed-titulo { font-weight: 500; }
+  .feed-item:hover { background: var(--panel); }
+  .feed-titulo {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .feed-autor { color: var(--tenue); font-size: 12px; margin-left: auto; white-space: nowrap; }
+  .feed-acciones { display: flex; gap: 4px; align-items: center; }
+  .feed-accion {
+    font-size: 12px;
+    padding: 4px 9px;
+    white-space: nowrap;
+    border-color: transparent;
+    background: transparent;
+    color: var(--tenue);
+  }
+  .feed-accion:hover { background: var(--panel); border-color: var(--borde); color: var(--texto); }
+  .feed-accion.destacada { color: var(--sx-funcion); font-weight: 500; }
+  .feed-accion.peligro:hover { color: var(--err); border-color: var(--err); }
 
   footer {
     padding: 8px 16px;
@@ -607,32 +729,34 @@
   </div>
 
   <div id="sala-con-sesion" hidden>
-    <p id="sala-usuario" class="vacio"></p>
-
-    <div class="sala-fila">
-      <label for="sala-selector">Sala</label>
+    <div id="sala-barra">
       <select id="sala-selector" aria-label="Sala actual"></select>
-      <span id="sala-codigo" class="sala-etiqueta"></span>
+      <span id="sala-codigo" class="pastilla"></span>
+      <button id="btn-gestionar-sala" class="sutil" title="Crear una sala o unirte a otra">Salas…</button>
     </div>
 
-    <div class="sala-fila">
-      <input id="sala-nombre-nueva" placeholder="Nombre de la sala" autocomplete="off">
-      <button id="btn-crear-sala">Crear</button>
-    </div>
-    <div class="sala-fila">
-      <input id="sala-codigo-unirse" placeholder="Código para unirte" autocomplete="off">
-      <button id="btn-unirse-sala">Unirme</button>
+    <div id="sala-gestion" hidden>
+      <div class="sala-fila">
+        <input id="sala-nombre-nueva" placeholder="Nombre de la sala nueva" autocomplete="off">
+        <button id="btn-crear-sala">Crear</button>
+      </div>
+      <div class="sala-fila">
+        <input id="sala-codigo-unirse" placeholder="Código para unirte" autocomplete="off">
+        <button id="btn-unirse-sala">Unirme</button>
+      </div>
     </div>
 
     <div class="sala-botones">
-      <button id="btn-crear-ejercicio">Crear ejercicio…</button>
-      <button id="btn-compartir">Compartir en la sala</button>
-      <button id="btn-salir-sesion">Cerrar sesión</button>
+      <button id="btn-crear-ejercicio" class="primario">Crear ejercicio</button>
+      <button id="btn-compartir">Compartir mi solución</button>
     </div>
-    <p id="sala-que-comparte" class="vacio"></p>
 
-    <h3>Publicado en la sala</h3>
-    <div id="sala-feed"></div>
+    <div id="sala-secciones"></div>
+  </div>
+
+  <div id="sala-pie">
+    <span id="sala-usuario"></span>
+    <button id="btn-salir-sesion" class="sutil">Cerrar sesión</button>
   </div>
 </dialog>
 

@@ -212,9 +212,17 @@ create policy "publicar ejercicio" on ejercicios
     and (sala is null or es_miembro(sala))
   );
 
+-- El `with check` mira la fila *después* del cambio: sin la condición de la
+-- sala, alguien podría mover un ejercicio propio a una sala a la que no
+-- pertenece con solo cambiar el id.
 drop policy if exists "editar mi ejercicio" on ejercicios;
 create policy "editar mi ejercicio" on ejercicios
-  for update to authenticated using (autor = auth.uid()) with check (autor = auth.uid());
+  for update to authenticated
+  using (autor = auth.uid())
+  with check (
+    autor = auth.uid()
+    and (sala is null or es_miembro(sala))
+  );
 
 drop policy if exists "borrar ejercicio" on ejercicios;
 create policy "borrar ejercicio" on ejercicios
