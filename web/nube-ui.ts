@@ -10,10 +10,12 @@
  * núcleo, que es la condición que se puso desde el principio.
  */
 import { hayNube, leerConfig } from "./nube.ts";
-import { abrirEditorDeEjercicio } from "./editor-ejercicio.ts";
+import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercicio.ts";
 import { alCambiarSesion, entrar, salir, usuarioActual, type Usuario } from "./auth.ts";
 import {
+  actualizarEjercicio,
   compartirPrograma,
+  copiarEjercicio,
   crearSala,
   escucharSala,
   guardarEjercicioPersonal,
@@ -145,7 +147,32 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
 
       boton.append(titulo, etiqueta, autor);
       boton.addEventListener("click", () => void abrirItem(item));
-      feed.appendChild(boton);
+
+      const fila = document.createElement("div");
+      fila.className = "feed-fila";
+      fila.appendChild(boton);
+
+      // Las acciones van fuera del botón que abre: un botón dentro de otro no
+      // es HTML válido y el clic se dispararía dos veces.
+      if (item.tipo !== "programa") {
+        if (item.autorId === usuario?.id) {
+          const editar = document.createElement("button");
+          editar.className = "feed-accion";
+          editar.textContent = "Editar";
+          editar.title = "Cambiar el enunciado o los casos";
+          editar.addEventListener("click", () => void editarItem(item));
+          fila.appendChild(editar);
+        } else {
+          const copiar = document.createElement("button");
+          copiar.className = "feed-accion";
+          copiar.textContent = "Copiar";
+          copiar.title = "Guardar una copia en mis ejercicios";
+          copiar.addEventListener("click", () => void copiarItem(item));
+          fila.appendChild(copiar);
+        }
+      }
+
+      feed.appendChild(fila);
     }
   }
 
@@ -204,6 +231,26 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
     await cambiarDeSala(salaActual);
   }
 
+  /** Abre el formulario con un ejercicio propio cargado. */
+  async function editarItem(item: ItemFeed): Promise<void> {
+    const r = await traerEjercicio(item.id);
+    if (!r.ok) {
+      enlace.avisar(r.mensaje + "\n", "roto");
+      return;
+    }
+    abrirFormulario({ id: item.id, contenido: r.dato.contenido, codigo: r.dato.codigo });
+  }
+
+  /** Se lleva una copia propia de un ejercicio ajeno. */
+  async function copiarItem(item: ItemFeed): Promise<void> {
+    const r = await copiarEjercicio(item.id);
+    enlace.avisar(
+      r.ok ? `Se guardó una copia de "${item.titulo}" en tus ejercicios.\n` : r.mensaje + "\n",
+      r.ok ? "fin" : "roto",
+    );
+    if (r.ok) await refrescarFeed();
+  }
+
   async function abrirItem(item: ItemFeed): Promise<void> {
     if (item.tipo === "ejercicio" || item.tipo === "personal") {
       const r = await traerEjercicio(item.id);
@@ -260,34 +307,44 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<void> {
 
   selector.addEventListener("change", () => void cambiarDeSala(selector.value || null));
 
+  function abrirFormulario(editando?: EjercicioAEditar): void {
+    abrirEditorDeEjercicio({
+      codigoActual: enlace.codigoActual,
+      editando,
+
+      async guardarPersonal(titulo, contenido, codigo) {
+        const r = await guardarEjercicioPersonal(titulo, contenido, codigo);
+        if (!r.ok) return r.mensaje;
+        enlace.avisar(`Se guardó "${titulo}" en tus ejercicios.\n`, "fin");
+        return null;
+      },
+
+      async actualizar(id, titulo, contenido, codigo) {
+        const r = await actualizarEjercicio(id, titulo, contenido, codigo);
+        if (!r.ok) return r.mensaje;
+        enlace.avisar(`Se guardaron los cambios de "${titulo}".\n`, "fin");
+        return null;
+      },
+
+      // Sin sala elegida el botón de publicar queda deshabilitado; pasar
+      // `null` es lo que se lo indica al formulario.
+      publicarEnSala:
+        salaActual === null
+          ? null
+          : async (titulo, contenido, codigo) => {
+              const r = await publicarEjercicio(salaActual!, titulo, contenido, codigo);
+              if (!r.ok) return r.mensaje;
+              enlace.avisar(`Se publicó "${titulo}" en la sala.\n`, "fin");
+              return null;
+            },
+
+      alGuardar: () => void refrescarFeed(),
+    });
+  }
+
   document
     .querySelector<HTMLButtonElement>("#btn-crear-ejercicio")!
-    .addEventListener("click", () => {
-      abrirEditorDeEjercicio({
-        codigoActual: enlace.codigoActual,
-
-        async guardarPersonal(titulo, contenido, codigo) {
-          const r = await guardarEjercicioPersonal(titulo, contenido, codigo);
-          if (!r.ok) return r.mensaje;
-          enlace.avisar(`Se guardó "${titulo}" en tus ejercicios.\n`, "fin");
-          return null;
-        },
-
-        // Sin sala elegida el botón de publicar queda deshabilitado; pasar
-        // `null` es lo que se lo indica al formulario.
-        publicarEnSala:
-          salaActual === null
-            ? null
-            : async (titulo, contenido, codigo) => {
-                const r = await publicarEjercicio(salaActual!, titulo, contenido, codigo);
-                if (!r.ok) return r.mensaje;
-                enlace.avisar(`Se publicó "${titulo}" en la sala.\n`, "fin");
-                return null;
-              },
-
-        alGuardar: () => void refrescarFeed(),
-      });
-    });
+    .addEventListener("click", () => abrirFormulario());
 
   document.querySelector<HTMLButtonElement>("#btn-crear-sala")!.addEventListener("click", () => {
     const nombre = nombreNueva.value.trim();

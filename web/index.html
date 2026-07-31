@@ -493,6 +493,8 @@
   #ej-aviso.bien { color: var(--ok); }
 
   #sala-feed { display: flex; flex-direction: column; gap: 6px; }
+  .feed-fila { display: flex; gap: 6px; align-items: stretch; }
+  .feed-accion { font-size: 12px; padding: 4px 9px; white-space: nowrap; }
   .feed-item {
     display: flex;
     align-items: baseline;
@@ -648,7 +650,7 @@
 
   <label class="ej-check">
     <input type="checkbox" id="ej-incluir-codigo" checked>
-    Incluir el seudocódigo que tengo en el editor
+    <span id="ej-etiqueta-codigo">Incluir el seudocódigo que tengo en el editor</span>
   </label>
 
   <h3>Casos de prueba</h3>

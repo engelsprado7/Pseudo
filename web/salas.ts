@@ -25,6 +25,8 @@ export interface Publicacion {
   id: string;
   titulo: string;
   autor: string;
+  /** Id del autor, para saber si se puede editar sin que RLS tenga que negarlo. */
+  autorId: string;
   creado: string;
 }
 
@@ -94,15 +96,19 @@ export async function unirseASala(codigo: string): Promise<Resultado<string>> {
 interface FilaPublicacion {
   id: string;
   titulo: string | null;
+  autor: string;
   creado: string;
   perfiles: { nombre: string | null } | null;
 }
+
+const CAMPOS = "id, titulo, autor, creado, perfiles:autor ( nombre )";
 
 function aPublicaciones(filas: FilaPublicacion[], porDefecto: string): Publicacion[] {
   return filas.map((f) => ({
     id: f.id,
     titulo: f.titulo ?? porDefecto,
     autor: f.perfiles?.nombre ?? "Alguien",
+    autorId: f.autor,
     creado: f.creado,
   }));
 }
@@ -113,7 +119,7 @@ export async function listarEjercicios(sala: string): Promise<Resultado<Publicac
 
   const { data, error } = await c
     .from("ejercicios")
-    .select("id, titulo, creado, perfiles:autor ( nombre )")
+    .select(CAMPOS)
     .eq("sala", sala)
     .order("creado", { ascending: false })
     .limit(100);
@@ -128,7 +134,7 @@ export async function listarProgramas(sala: string): Promise<Resultado<Publicaci
 
   const { data, error } = await c
     .from("programas")
-    .select("id, titulo, creado, perfiles:autor ( nombre )")
+    .select(CAMPOS)
     .eq("sala", sala)
     .order("creado", { ascending: false })
     .limit(100);
@@ -171,7 +177,7 @@ export async function misEjercicios(): Promise<Resultado<Publicacion[]>> {
 
   const { data, error } = await c
     .from("ejercicios")
-    .select("id, titulo, creado, perfiles:autor ( nombre )")
+    .select(CAMPOS)
     .is("sala", null)
     .order("creado", { ascending: false })
     .limit(100);
@@ -224,10 +230,55 @@ export async function compartirPrograma(
 }
 
 export interface EjercicioPublicado {
+  titulo: string;
   /** El `.md`, tal como lo lee `leerEjercicio()`. */
   contenido: string;
   /** Seudocódigo que lo acompaña, o `null` si se publicó sin código. */
   codigo: string | null;
+}
+
+/**
+ * Cambia un ejercicio existente. Solo su autor puede: lo impone RLS.
+ *
+ * No toca la sala, así que editar un ejercicio publicado no lo despublica ni
+ * uno privado se publica sin querer.
+ */
+export async function actualizarEjercicio(
+  id: string,
+  titulo: string,
+  contenido: string,
+  codigo: string | null,
+): Promise<Resultado<string>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c
+    .from("ejercicios")
+    .update({ titulo, contenido, codigo })
+    .eq("id", id);
+
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: id };
+}
+
+/**
+ * Copia un ejercicio de la sala al taller privado de quien lo pide.
+ *
+ * Es una copia de verdad, no un enlace: si el original cambia o se borra, la
+ * copia sigue igual. Un alumno que se lleva un ejercicio se lo lleva de verdad.
+ */
+export async function copiarEjercicio(id: string): Promise<Resultado<string>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const original = await traerEjercicio(id);
+  if (!original.ok) return original;
+
+  return guardarEjercicioPersonal(
+    original.dato.titulo,
+    original.dato.contenido,
+    original.dato.codigo,
+  );
 }
 
 export async function traerEjercicio(id: string): Promise<Resultado<EjercicioPublicado>> {
@@ -236,13 +287,16 @@ export async function traerEjercicio(id: string): Promise<Resultado<EjercicioPub
 
   const { data, error } = await c
     .from("ejercicios")
-    .select("contenido, codigo")
+    .select("titulo, contenido, codigo")
     .eq("id", id)
     .single();
 
   if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
-  const fila = data as { contenido: string; codigo: string | null };
-  return { ok: true, dato: { contenido: fila.contenido, codigo: fila.codigo } };
+  const fila = data as { titulo: string; contenido: string; codigo: string | null };
+  return {
+    ok: true,
+    dato: { titulo: fila.titulo, contenido: fila.contenido, codigo: fila.codigo },
+  };
 }
 
 /** Trae el código de un programa compartido (enlace corto `#s=...`). */

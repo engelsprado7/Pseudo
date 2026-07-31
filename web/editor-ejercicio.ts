@@ -15,6 +15,14 @@
  */
 import { escribirEjercicio, leerEjercicio, type CasoDePrueba } from "../src/ejercicio.ts";
 
+/** Ejercicio que ya existe y se viene a modificar. */
+export interface EjercicioAEditar {
+  id: string;
+  /** El `.md` guardado; de acá se repuebla el formulario. */
+  contenido: string;
+  codigo: string | null;
+}
+
 export interface OpcionesEditor {
   /** Seudocódigo del editor, para ofrecer adjuntarlo. */
   codigoActual: () => string;
@@ -24,6 +32,15 @@ export interface OpcionesEditor {
   publicarEnSala:
     | ((titulo: string, contenido: string, codigo: string | null) => Promise<string | null>)
     | null;
+  /** Guarda los cambios de un ejercicio existente. Solo en modo edición. */
+  actualizar?: (
+    id: string,
+    titulo: string,
+    contenido: string,
+    codigo: string | null,
+  ) => Promise<string | null>;
+  /** Si viene, el formulario abre con estos datos y guarda encima. */
+  editando?: EjercicioAEditar;
   /** Se llama después de guardar o publicar, para refrescar listas. */
   alGuardar: () => void;
 }
@@ -150,11 +167,15 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
       return null;
     }
 
-    return {
-      titulo,
-      contenido,
-      codigo: elIncluirCodigo.checked ? opciones.codigoActual() : null,
-    };
+    // Al editar, la casilla significa "reemplazar": sin marcarla se conserva el
+    // código guardado. Si significara "incluir", venir a corregir una coma del
+    // enunciado pisaría la solución con lo que hubiera en el editor.
+    const editandoAhora = opciones.editando;
+    const codigo = elIncluirCodigo.checked
+      ? opciones.codigoActual()
+      : (editandoAhora?.codigo ?? null);
+
+    return { titulo, contenido, codigo };
   }
 
   async function enviar(publicar: boolean): Promise<void> {
@@ -165,9 +186,12 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
     btnPublicar.disabled = true;
     avisar("Guardando…");
 
+    const editando = opciones.editando;
     const error = publicar
       ? await opciones.publicarEnSala!(datos.titulo, datos.contenido, datos.codigo)
-      : await opciones.guardarPersonal(datos.titulo, datos.contenido, datos.codigo);
+      : editando !== undefined && opciones.actualizar !== undefined
+        ? await opciones.actualizar(editando.id, datos.titulo, datos.contenido, datos.codigo)
+        : await opciones.guardarPersonal(datos.titulo, datos.contenido, datos.codigo);
 
     btnGuardar.disabled = false;
     btnPublicar.disabled = opciones.publicarEnSala === null;
@@ -181,14 +205,52 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
   }
 
   // --- Estado inicial ---
-  elTitulo.value = "";
-  elEnunciado.value = "";
-  elIncluirCodigo.checked = true;
+  const editando = opciones.editando;
   contenedorCasos.textContent = "";
   filas.length = 0;
   avisar("");
-  agregarCaso();
 
+  document.querySelector<HTMLElement>("#dialogo-ejercicio h2")!.textContent =
+    editando === undefined ? "Crear ejercicio" : "Editar ejercicio";
+  btnGuardar.textContent =
+    editando === undefined ? "Guardar en mis ejercicios" : "Guardar cambios";
+
+  if (editando === undefined) {
+    elTitulo.value = "";
+    elEnunciado.value = "";
+    elIncluirCodigo.checked = true;
+    agregarCaso();
+  } else {
+    // Se repuebla desde el `.md` guardado, no desde una copia aparte de los
+    // datos: si se pudo leer, es exactamente lo que va a ver el alumno.
+    const leido = leerEjercicio(editando.contenido);
+    if (leido.ok) {
+      elTitulo.value = leido.ejercicio.titulo;
+      elEnunciado.value = leido.ejercicio.enunciado;
+      for (const caso of leido.ejercicio.casos) {
+        agregarCaso();
+        const fila = filas[filas.length - 1]!;
+        fila.nombre.value = caso.nombre;
+        fila.entrada.value = caso.entrada.join("\n");
+        fila.salida.value = caso.salidaEsperada;
+      }
+    } else {
+      avisar("El ejercicio guardado no se pudo leer; revisá los campos.", "roto");
+    }
+    elIncluirCodigo.checked = false;
+    if (filas.length === 0) agregarCaso();
+  }
+
+  document.querySelector<HTMLElement>("#ej-etiqueta-codigo")!.textContent =
+    editando === undefined
+      ? "Incluir el seudocódigo que tengo en el editor"
+      : editando.codigo === null
+        ? "Adjuntar el seudocódigo que tengo en el editor"
+        : "Reemplazar el seudocódigo guardado por el del editor";
+
+  // Editando, "Publicar" crearía un duplicado en vez de mover el que se está
+  // tocando. Se ofrece solo al crear.
+  btnPublicar.hidden = editando !== undefined;
   btnPublicar.disabled = opciones.publicarEnSala === null;
   btnPublicar.title =
     opciones.publicarEnSala === null ? "Primero entrá a una sala" : "Publicar en la sala actual";
