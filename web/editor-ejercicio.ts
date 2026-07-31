@@ -13,7 +13,12 @@
  * sin casos es un problema abierto, que era justamente lo que faltaba poder
  * plantear.
  */
-import { escribirEjercicio, leerEjercicio, type CasoDePrueba } from "../src/ejercicio.ts";
+import {
+  escribirEjercicio,
+  leerEjercicio,
+  type CasoDePrueba,
+  type ModoComparacion,
+} from "../src/ejercicio.ts";
 
 /** Ejercicio que ya existe y se viene a modificar. */
 export interface EjercicioAEditar {
@@ -41,6 +46,14 @@ export interface OpcionesEditor {
   ) => Promise<string | null>;
   /** Si viene, el formulario abre con estos datos y guarda encima. */
   editando?: EjercicioAEditar;
+  /**
+   * Ejecuta el código del editor con una entrada y devuelve lo que escribió.
+   *
+   * Es lo que evita que el docente tenga que adivinar la salida esperada: la
+   * consola muestra además el eco de lo que uno tipea, y copiar eso da un caso
+   * que no puede aprobar nunca.
+   */
+  probarConEntrada: (entrada: string[]) => { ok: true; salida: string } | { ok: false; mensaje: string };
   /** Se llama después de guardar o publicar, para refrescar listas. */
   alGuardar: () => void;
 }
@@ -61,6 +74,7 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
   const btnAgregar = document.querySelector<HTMLButtonElement>("#ej-agregar-caso")!;
   const btnGuardar = document.querySelector<HTMLButtonElement>("#ej-guardar")!;
   const btnPublicar = document.querySelector<HTMLButtonElement>("#ej-publicar")!;
+  const elComparacion = document.querySelector<HTMLSelectElement>("#ej-comparacion")!;
   const elAviso = document.querySelector<HTMLElement>("#ej-aviso")!;
 
   const filas: FilaCaso[] = [];
@@ -79,9 +93,15 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
     const nombre = document.createElement("input");
     nombre.placeholder = `Nombre del caso (por ejemplo: valores enteros)`;
     nombre.autocomplete = "off";
+    const probar = document.createElement("button");
+    probar.type = "button";
+    probar.textContent = "Calcular salida";
+    probar.title = "Ejecuta tu código con esta entrada y completa la salida esperada";
+
     const quitar = document.createElement("button");
+    quitar.type = "button";
     quitar.textContent = "Quitar";
-    cabecera.append(nombre, quitar);
+    cabecera.append(nombre, probar, quitar);
 
     const par = document.createElement("div");
     par.className = "ej-caso-par";
@@ -107,6 +127,17 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
 
     const fila: FilaCaso = { nodo, nombre, entrada, salida };
     filas.push(fila);
+
+    probar.addEventListener("click", () => {
+      const valores = entrada.value.replace(/\n+$/, "");
+      const r = opciones.probarConEntrada(valores === "" ? [] : valores.split("\n"));
+      if (!r.ok) {
+        avisar(r.mensaje, "roto");
+        return;
+      }
+      salida.value = r.salida.replace(/\n+$/, "");
+      avisar("Salida calculada con tu código. Revisá que sea la correcta.", "bien");
+    });
 
     quitar.addEventListener("click", () => {
       const i = filas.indexOf(fila);
@@ -150,7 +181,7 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
     const contenido = escribirEjercicio({
       titulo,
       enunciado: elEnunciado.value,
-      comparacion: "normalizada",
+      comparacion: elComparacion.value as ModoComparacion,
       casos,
     });
 
@@ -218,6 +249,7 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
   if (editando === undefined) {
     elTitulo.value = "";
     elEnunciado.value = "";
+    elComparacion.value = "contiene";
     elIncluirCodigo.checked = true;
     agregarCaso();
   } else {
@@ -227,6 +259,7 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
     if (leido.ok) {
       elTitulo.value = leido.ejercicio.titulo;
       elEnunciado.value = leido.ejercicio.enunciado;
+      elComparacion.value = leido.ejercicio.comparacion;
       for (const caso of leido.ejercicio.casos) {
         agregarCaso();
         const fila = filas[filas.length - 1]!;

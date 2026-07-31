@@ -1051,6 +1051,14 @@
   </label>
 
   <h3>Casos de prueba</h3>
+  <div class="sala-fila">
+    <label for="ej-comparacion">Comparar</label>
+    <select id="ej-comparacion">
+      <option value="contiene">Que aparezcan las líneas esperadas (recomendado)</option>
+      <option value="normalizada">Que la salida coincida entera</option>
+      <option value="exacta">Coincidencia exacta, espacios incluidos</option>
+    </select>
+  </div>
   <p class="vacio" id="ej-nota-casos">
     Con casos, el alumno puede darle a Verificar y el editor le dice si acertó.
     Sin casos, el ejercicio es un problema abierto: se resuelve y se ejecuta.

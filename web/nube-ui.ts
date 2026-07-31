@@ -66,6 +66,10 @@ export interface Enlace {
     contenido: string;
     codigo: string;
   } | null>;
+  /** Corre el código del editor con una entrada y devuelve lo que escribió. */
+  probarConEntrada: (
+    entrada: string[],
+  ) => { ok: true; salida: string } | { ok: false; mensaje: string };
   /** Escribe en la consola del editor. */
   avisar: (mensaje: string, clase?: string) => void;
 }
@@ -643,6 +647,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   function abrirFormulario(editando?: EjercicioAEditar): void {
     abrirEditorDeEjercicio({
       codigoActual: enlace.codigoActual,
+      probarConEntrada: enlace.probarConEntrada,
       editando,
 
       async guardarPersonal(titulo, contenido, codigo) {

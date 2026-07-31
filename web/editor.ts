@@ -29,6 +29,7 @@ import {
   type ManejadorArchivo,
 } from "./archivos.ts";
 import {
+  correrCaso,
   explicar,
   leerEjercicio,
   verificarSolucion,
@@ -1400,6 +1401,36 @@ void iniciarNubeUI({
     } catch {
       return null;
     }
+  },
+
+  probarConEntrada(entrada) {
+    const compilado = compilar(vista.state.doc.toString());
+    if (!compilado.ok) {
+      const n = compilado.diagnosticos.length;
+      return {
+        ok: false,
+        mensaje: `Tu código tiene ${n} ${n === 1 ? "error" : "errores"}: corregilos y volvé a calcular.`,
+      };
+    }
+    // Se reusa el mismo motor que corrige, así lo que se guarda como salida
+    // esperada es exactamente lo que la verificación va a comparar. Calcularlo
+    // de otra forma sería volver a abrir la puerta a que no coincidan.
+    const r = correrCaso(
+      compilado.programa,
+      { nombre: "prueba", entrada, salidaEsperada: "" },
+      { comparacion: "normalizada", decimales: null },
+      { limitePasos: 500_000 },
+    );
+    if (r.estado === "sin-entrada") {
+      return {
+        ok: false,
+        mensaje: `Tu programa pidió ${r.entradasPedidas} valores y esta entrada trae ${r.entradasDisponibles}.`,
+      };
+    }
+    if (r.estado === "error") {
+      return { ok: false, mensaje: r.diagnostico === undefined ? "El programa se detuvo con un error." : formatearDiagnostico(r.diagnostico) };
+    }
+    return { ok: true, salida: r.obtenido };
   },
 
   avisar: (mensaje, clase) => anexar(mensaje, clase),
