@@ -1145,6 +1145,12 @@ void iniciarNubeUI({
     manejadorArchivo = undefined;
     reemplazarContenido(texto);
     referenciaGuardada = texto;
+    // Un programa es código suelto, sin consigna ni casos. Si no se cerrara el
+    // ejercicio anterior, el panel seguiría mostrando su enunciado y el botón
+    // Verificar corregiría el programa recién cargado contra los casos de otro
+    // ejercicio: mentiría dos veces.
+    deseleccionarEjercicio();
+    consola.textContent = "";
     refrescarCabeceraArchivo();
     recordarSesion();
     anexar(`Se cargó "${titulo}" desde la sala.\n`, "fin");
