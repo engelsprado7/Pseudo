@@ -1,1 +1,8 @@
 node_modules/
+
+# Salida del build: la reconstruye `npm run build` y la publica el workflow de
+# Pages. Versionarla solo ensucia los diffs y deja trozos viejos con hash.
+sitio/
+
+# Basura del Finder de macOS.
+.DS_Store
