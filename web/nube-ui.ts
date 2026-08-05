@@ -542,12 +542,21 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
 
     // Si la entrega responde a un ejercicio, se abre con su enunciado y sus
     // casos: es lo que permite corregirla con Verificar en vez de leerla a ojo.
-    // El progreso no se registra —el id va en `null`— porque quien corrige no
-    // es quien entregó, y anotarlo falsearía la planilla.
+    //
+    // El vínculo se conserva solo si la entrega es propia. Para quien la abre
+    // sin ser su autor —el docente corrigiendo— va en `null`, porque anotar ese
+    // resultado como progreso falsearía la planilla. Pero para su autor tiene
+    // que mantenerse: sin él, volver a entregar buscaba una fila sin ejercicio,
+    // no encontraba la suya, e insertaba una segunda.
+    const esMia = usuario !== null && item.autorId === usuario.id;
+
     if (r.dato.ejercicio !== null) {
       const ej = await traerEjercicio(r.dato.ejercicio);
       if (ej.ok) {
-        if (enlace.cargarEjercicioMd(ej.dato.contenido, item.titulo, r.dato.codigo, null)) {
+        const idParaProgreso = esMia ? r.dato.ejercicio : null;
+        if (
+          enlace.cargarEjercicioMd(ej.dato.contenido, item.titulo, r.dato.codigo, idParaProgreso)
+        ) {
           dialogo.close();
         }
         return;
