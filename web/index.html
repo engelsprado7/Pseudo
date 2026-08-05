@@ -804,6 +804,98 @@
   }
   .feed-accion.destacada { color: var(--sx-funcion); font-weight: 500; }
 
+  /* --- Planilla de la clase --- */
+  /* Se abre con show() y no showModal(): el docente tiene que poder seguir
+     usando el editor —explicar, corregir, ejecutar— con la planilla a la vista.
+     Un modal acá obligaría a cerrarla cada vez, y entonces no se mira. */
+  #dialogo-clase {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    left: auto;
+    top: auto;
+    margin: 0;
+    width: min(760px, calc(100vw - 32px));
+    max-height: min(62vh, 560px);
+    display: none;
+    flex-direction: column;
+    padding: 0;
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    background: var(--panel);
+    color: var(--texto);
+    font-family: var(--sans);
+    box-shadow: 0 16px 44px rgb(0 0 0 / .24);
+  }
+  #dialogo-clase[open] { display: flex; }
+
+  #clase-cabecera {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--borde);
+  }
+  #clase-cabecera h2 { font-size: 14px; font-weight: 600; margin: 0; }
+  #clase-resumen { font-size: 12px; color: var(--tenue); margin-left: auto; }
+  #btn-cerrar-clase { padding: 4px 7px; color: var(--tenue); }
+  #clase-cuerpo { overflow: auto; padding: 4px 14px 14px; }
+
+  #clase-cuerpo table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  #clase-cuerpo th, #clase-cuerpo td { padding: 6px 8px; text-align: left; }
+  #clase-cuerpo thead th {
+    position: sticky;
+    top: 0;
+    background: var(--panel);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--tenue);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    border-bottom: 1px solid var(--borde);
+    /* Las columnas de ejercicio se leen de a poco: mejor angostas y verticales
+       que una tabla que se va de ancho con cuatro ejercicios. */
+    max-width: 110px;
+  }
+  #clase-cuerpo tbody tr { border-bottom: 1px solid color-mix(in srgb, var(--borde) 55%, transparent); }
+  #clase-cuerpo tbody tr:hover { background: var(--fondo); }
+  .pl-nombre { font-weight: 500; white-space: nowrap; }
+  .pl-celda { text-align: center; font-variant-numeric: tabular-nums; }
+  .pl-marca {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 46px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .pl-marca.aprobado { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  .pl-marca.parcial  { background: color-mix(in srgb, var(--aviso) 18%, transparent); color: var(--aviso); }
+  .pl-marca.fallado  { background: color-mix(in srgb, var(--err) 15%, transparent); color: var(--err); }
+  .pl-marca.sin-empezar { color: var(--tenue); }
+  .pl-intentos { font-size: 10px; opacity: .75; }
+  /* Quien más atención pide queda marcado en el margen, para encontrarlo sin
+     leer toda la tabla. */
+  tr.pl-atencion .pl-nombre { box-shadow: inset 3px 0 0 var(--err); padding-left: 11px; }
+
+  /* Señal pasiva: el número de quienes necesitan ayuda, sin abrir nada. */
+  .insignia {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 17px;
+    height: 17px;
+    padding: 0 5px;
+    margin-left: 3px;
+    border-radius: 999px;
+    background: var(--err);
+    color: #fff;
+    font-size: 10.5px;
+    font-weight: 600;
+  }
+
   /* --- Diagrama de flujo --- */
   #dialogo-diagrama[open] { display: flex; flex-direction: column; }
   #dialogo-diagrama {
@@ -932,6 +1024,7 @@
     </select>
     <button type="button" id="btn-diagrama" title="Ver el diagrama de flujo del programa">Diagrama</button>
     <button type="button" id="btn-sala" hidden title="Sala de clase: publicar y cargar ejercicios">Sala</button>
+    <button type="button" id="btn-clase" hidden title="Cómo va la clase, alumno por alumno">Clase</button>
   </div>
 
   <!-- Ejecutar es lo que más se aprieta: va al final y es el único destacado. -->
@@ -1021,11 +1114,6 @@
     <p id="sala-nota" class="vacio" hidden></p>
     <div id="sala-secciones"></div>
 
-    <section id="sala-progreso" class="seccion-feed" hidden>
-      <h3>Cómo va la clase</h3>
-      <div id="lista-progreso"></div>
-    </section>
-
     <section id="sala-miembros" class="seccion-feed" hidden>
       <h3>Quiénes están en la sala</h3>
       <div id="lista-miembros"></div>
@@ -1036,6 +1124,15 @@
     <span id="sala-usuario"></span>
     <button type="button" id="btn-salir-sesion" class="sutil">Cerrar sesión</button>
   </div>
+</dialog>
+
+<dialog id="dialogo-clase">
+  <div id="clase-cabecera">
+    <h2>Cómo va la clase</h2>
+    <span id="clase-resumen"></span>
+    <button type="button" id="btn-cerrar-clase" title="Cerrar"></button>
+  </div>
+  <div id="clase-cuerpo"></div>
 </dialog>
 
 <dialog id="dialogo-diagrama">

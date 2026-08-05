@@ -12,6 +12,7 @@
 import { hayNube, leerConfig } from "./nube.ts";
 import { icono } from "./iconos.ts";
 import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercicio.ts";
+import { crearPanelDeClase } from "./clase.ts";
 import { alCambiarSesion, entrar, salir, usuarioActual, type Usuario } from "./auth.ts";
 import {
   actualizarEjercicio,
@@ -29,11 +30,9 @@ import {
   listarProgramas,
   misEjercicios,
   misSalas,
-  listarProgreso,
   publicarBorrador,
   publicarEjercicio,
   registrarProgreso,
-  resumirProgreso,
   quitarMiembro,
   traerEjercicio,
   traerPrograma,
@@ -127,8 +126,6 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   const selector = document.querySelector<HTMLSelectElement>("#sala-selector")!;
   const elCodigo = document.querySelector<HTMLElement>("#sala-codigo")!;
   const secciones = document.querySelector<HTMLElement>("#sala-secciones")!;
-  const panelProgreso = document.querySelector<HTMLElement>("#sala-progreso")!;
-  const listaProgreso = document.querySelector<HTMLElement>("#lista-progreso")!;
   const panelMiembros = document.querySelector<HTMLElement>("#sala-miembros")!;
   const listaMiembros = document.querySelector<HTMLElement>("#lista-miembros")!;
 
@@ -143,6 +140,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   let dejarDeEscuchar: (() => void) | null = null;
   /** Ejercicios publicados en la sala actual, para titular el progreso. */
   let listaEjercicios: Publicacion[] = [];
+  const panelClase = crearPanelDeClase();
 
   // --- Render ---
 
@@ -377,88 +375,6 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     pintarMiembros(r.dato, salas.find((s) => s.id === salaActual)?.rol === "docente");
   }
 
-  /**
-   * Cómo va la clase, por ejercicio.
-   *
-   * Es la vista que un docente no puede conseguir de ninguna otra forma: en un
-   * laboratorio se entera de que media clase está trabada cuando alguien
-   * levanta la mano. Acá lo ve mientras pasa, y sobre todo ve **en qué caso**
-   * se traban, que es lo que decide si conviene parar y explicar.
-   *
-   * No muestra el código de nadie: quién está trabado y dónde alcanza para
-   * enseñar, y leer el programa por encima del hombro es otra cosa.
-   */
-  async function refrescarProgreso(): Promise<void> {
-    const soyDocente = salas.find((s) => s.id === salaActual)?.rol === "docente";
-    if (salaActual === null || !soyDocente) {
-      panelProgreso.hidden = true;
-      return;
-    }
-
-    const r = await listarProgreso(salaActual);
-    if (!r.ok) {
-      panelProgreso.hidden = true;
-      return;
-    }
-
-    const titulos = new Map(
-      [...listaEjercicios].map((e) => [e.id, e.titulo] as [string, string]),
-    );
-    const resumen = resumirProgreso(r.dato, titulos);
-
-    panelProgreso.hidden = false;
-    listaProgreso.textContent = "";
-
-    if (resumen.length === 0) {
-      const vacio = document.createElement("p");
-      vacio.className = "vacio";
-      vacio.textContent = "Todavía nadie verificó un ejercicio de esta sala.";
-      listaProgreso.appendChild(vacio);
-      return;
-    }
-
-    for (const e of resumen) {
-      const caja = document.createElement("div");
-      caja.className = "prog";
-
-      const cabecera = document.createElement("div");
-      cabecera.className = "prog-cabecera";
-      const titulo = document.createElement("span");
-      titulo.className = "prog-titulo";
-      titulo.textContent = e.titulo;
-      const cuenta = document.createElement("span");
-      cuenta.className = "prog-cuenta";
-      cuenta.textContent = `${e.aprobaron} de ${e.intentaron} aprobaron`;
-      cabecera.append(titulo, cuenta);
-      caja.appendChild(cabecera);
-
-      const barra = document.createElement("div");
-      barra.className = "prog-barra";
-      const relleno = document.createElement("div");
-      const porcentaje = e.intentaron === 0 ? 0 : (e.aprobaron / e.intentaron) * 100;
-      relleno.style.width = `${porcentaje}%`;
-      barra.appendChild(relleno);
-      caja.appendChild(barra);
-
-      // Solo se nombra un caso si más de uno se traba ahí: con una sola
-      // persona no es un patrón de la clase, es una consulta individual.
-      const patron = e.casosDificiles.filter((c) => c.cuantos > 1);
-      if (patron.length > 0) {
-        const nota = document.createElement("p");
-        nota.className = "prog-dificil";
-        for (const [i, c] of patron.entries()) {
-          if (i > 0) nota.appendChild(document.createTextNode(" · "));
-          const fuerte = document.createElement("b");
-          fuerte.textContent = String(c.cuantos);
-          nota.append(fuerte, document.createTextNode(` fallan «${c.nombre}»`));
-        }
-        caja.appendChild(nota);
-      }
-
-      listaProgreso.appendChild(caja);
-    }
-  }
-
   // --- Datos ---
 
   async function refrescarFeed(): Promise<void> {
@@ -500,13 +416,18 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       localStorage.setItem(CLAVE_SALA, id);
       dejarDeEscuchar = await escucharSala(id, () => {
         void refrescarFeed();
-        void refrescarProgreso();
+        void panelClase.refrescar();
       });
     }
     pintarSalas();
     await refrescarFeed();
     await refrescarMiembros();
-    await refrescarProgreso();
+    // La planilla vive fuera del modal, pero se entera de los mismos cambios.
+    panelClase.cambiarSala(
+      id,
+      salas.find((s) => s.id === id)?.rol === "docente",
+      listaEjercicios,
+    );
   }
 
   async function recargarSalas(): Promise<void> {
