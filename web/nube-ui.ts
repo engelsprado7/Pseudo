@@ -13,6 +13,7 @@ import { hayNube, leerConfig } from "./nube.ts";
 import { icono } from "./iconos.ts";
 import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercicio.ts";
 import { crearPanelDeClase } from "./clase.ts";
+import { claseDeApertura, comoAbrir } from "../src/apertura.ts";
 import {
   accionesDeItem,
   accionesDeMiembro,
@@ -531,47 +532,50 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     if (r.ok) await refrescarFeed();
   }
 
+  /**
+   * Abre algo del feed en el editor.
+   *
+   * Qué se recupera, dónde se guarda el avance y si el resultado cuenta como
+   * progreso lo decide `comoAbrir`, en el núcleo y con pruebas. Acá solo se
+   * traen los datos y se pasan: las cuatro variantes de "abrir" vivían en
+   * condicionales repartidos por esta función y cada una produjo su propio bug.
+   */
   async function abrirItem(item: ItemFeed): Promise<void> {
-    if (item.tipo === "ejercicio" || item.tipo === "personal") {
+    const clase = claseDeApertura(
+      { tipo: item.tipo, autorId: item.autorId },
+      usuario?.id ?? null,
+    );
+
+    if (clase === "ejercicio-asignado" || clase === "borrador-propio") {
       const r = await traerEjercicio(item.id);
       if (!r.ok) {
         enlace.avisar(r.mensaje + "\n", "roto");
         return;
       }
-      // Un borrador es privado: practicar en él no tiene por qué aparecer en
-      // el panel del docente, así que no se manda su id.
-      const idParaProgreso = item.tipo === "ejercicio" ? item.id : null;
+      const como = comoAbrir({ clase, id: item.id });
       if (
         enlace.cargarEjercicioMd({
           markdown: r.dato.contenido,
           titulo: item.titulo,
           codigo: r.dato.codigo,
-          idRemoto: idParaProgreso,
-          // Tanto un ejercicio asignado como un borrador propio son cosas en
-          // las que uno trabaja: su avance se recuerda por separado.
-          ranura: item.id,
+          idRemoto: como.progreso,
+          ranura: como.ranura,
         })
       ) {
         dialogo.close();
       }
       return;
     }
+
     const r = await traerPrograma(item.id);
     if (!r.ok) {
       enlace.avisar(r.mensaje + "\n", "roto");
       return;
     }
+    const como = comoAbrir({ clase, id: item.id, ejercicio: r.dato.ejercicio });
 
-    // Si la entrega responde a un ejercicio, se abre con su enunciado y sus
-    // casos: es lo que permite corregirla con Verificar en vez de leerla a ojo.
-    //
-    // El vínculo se conserva solo si la entrega es propia. Para quien la abre
-    // sin ser su autor —el docente corrigiendo— va en `null`, porque anotar ese
-    // resultado como progreso falsearía la planilla. Pero para su autor tiene
-    // que mantenerse: sin él, volver a entregar buscaba una fila sin ejercicio,
-    // no encontraba la suya, e insertaba una segunda.
-    const esMia = usuario !== null && item.autorId === usuario.id;
-
+    // Con su ejercicio detrás, la entrega se abre con enunciado y casos, así se
+    // corrige con Verificar en vez de leerla a ojo.
     if (r.dato.ejercicio !== null) {
       const ej = await traerEjercicio(r.dato.ejercicio);
       if (ej.ok) {
@@ -580,10 +584,8 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
             markdown: ej.dato.contenido,
             titulo: item.titulo,
             codigo: r.dato.codigo,
-            idRemoto: esMia ? r.dato.ejercicio : null,
-            // La propia sigue siendo trabajo en curso; la de otro es un envío
-            // cerrado, y hay que ver siempre lo que mandó, no lo que uno tenga.
-            ranura: esMia ? r.dato.ejercicio : null,
+            idRemoto: como.progreso,
+            ranura: como.ranura,
           })
         ) {
           dialogo.close();
@@ -596,6 +598,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
 
     if (enlace.cargarCodigo(r.dato.codigo, item.titulo)) dialogo.close();
   }
+
 
   // --- Eventos ---
 
