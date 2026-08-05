@@ -139,6 +139,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   if (!(await hayNube())) return SIN_CONTROLES;
 
   const btnSala = document.querySelector<HTMLButtonElement>("#btn-sala")!;
+  const btnEntregar = document.querySelector<HTMLButtonElement>("#btn-entregar")!;
   const dialogo = document.querySelector<HTMLDialogElement>("#dialogo-sala")!;
   const sinSesion = document.querySelector<HTMLElement>("#sala-sin-sesion")!;
   const conSesion = document.querySelector<HTMLElement>("#sala-con-sesion")!;
@@ -181,6 +182,11 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   }
 
   function pintarSalas(): void {
+    // Entregar vive en la barra, no acá: es la última acción del alumno
+    // —resolver, Verificar, Entregar— y estaba a dos clics detrás de un modal.
+    // Solo aparece cuando hay a quién entregarle.
+    btnEntregar.hidden = usuario === null || salaActual === null;
+
     selector.textContent = "";
     if (salas.length === 0) {
       const vacio = document.createElement("option");
@@ -606,8 +612,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     ["#btn-cerrar-sala", "cerrar"],
     ["#btn-cerrar-ejercicio", "cerrar"],
     ["#btn-crear-ejercicio", "mas"],
-    ["#btn-compartir", "compartir"],
-    ["#btn-gestionar-sala", "salas"],
+        ["#btn-gestionar-sala", "salas"],
     ["#btn-salir-sesion", "salir"],
   ] as const) {
     const b = document.querySelector<HTMLButtonElement>(selector);
@@ -741,7 +746,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
    * parecían la misma cosa. Publicar un ejercicio ahora es una acción sobre el
    * ejercicio, en su propia fila.
    */
-  document.querySelector<HTMLButtonElement>("#btn-compartir")!.addEventListener("click", () => {
+  document.querySelector<HTMLButtonElement>("#btn-entregar")!.addEventListener("click", () => {
     void (async () => {
       if (salaActual === null) {
         enlace.avisar("Primero entrá a una sala.\n", "aviso");

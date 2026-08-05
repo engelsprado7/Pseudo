@@ -1377,6 +1377,7 @@ for (const [selector, nombre] of [
   ["#btn-detener", "detener"],
   ["#btn-paso", "pasos"],
   ["#btn-verificar", "verificar"],
+  ["#btn-entregar", "compartir"],
   ["#btn-diagrama", "diagrama"],
   ["#btn-cerrar-diagrama", "cerrar"],
   ["#btn-bajar-diagrama", "bajar"],

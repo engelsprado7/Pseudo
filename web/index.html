@@ -153,6 +153,19 @@
   }
   button.peligro:hover { filter: brightness(1.08); border-color: var(--err); }
 
+  /* Acción clave del alumno: no compite con Ejecutar por el relleno sólido,
+     pero se distingue del resto y nunca se queda sin rótulo. Entregar sin
+     querer no existe, pero no encontrar dónde entregar sí pasa. */
+  button.clave {
+    border-color: var(--sx-funcion);
+    color: var(--sx-funcion);
+    font-weight: 500;
+  }
+  button.clave:hover {
+    background: color-mix(in srgb, var(--sx-funcion) 12%, transparent);
+    border-color: var(--sx-funcion);
+  }
+
   select {
     font: inherit;
     font-size: 13px;
@@ -217,13 +230,13 @@
   /* En pantallas angostas los botones secundarios se quedan con el icono: el
      texto es lo primero que sobra cuando falta ancho. */
   @media (max-width: 1100px) {
-    .grupo button:not(.primario):not(.peligro) span { display: none; }
-    .grupo button:not(.primario):not(.peligro) { padding: 6px 8px; }
+    .grupo button:not(.primario):not(.peligro):not(.clave) span { display: none; }
+    .grupo button:not(.primario):not(.peligro):not(.clave) { padding: 6px 8px; }
     /* El menú conserva sus rótulos: una lista de iconos sueltos no se entiende.
        Hace falta repetir los :not() para ganarle en especificidad a la regla de
        arriba, que si no esconde también estos. */
-    .menu-panel button:not(.primario):not(.peligro) span { display: inline; }
-    .menu-panel button:not(.primario):not(.peligro) { padding: 7px 9px; }
+    .menu-panel button:not(.primario):not(.peligro):not(.clave) span { display: inline; }
+    .menu-panel button:not(.primario):not(.peligro):not(.clave) { padding: 7px 9px; }
   }
 
   #zona-soltar {
@@ -1044,6 +1057,7 @@
   <div class="grupo grupo-final">
     <button type="button" id="btn-paso" title="Ejecutar mostrando cada paso y las variables">Paso a paso</button>
     <button type="button" id="btn-verificar" hidden title="Corregir contra los casos (Ctrl+Shift+Enter)">Verificar</button>
+    <button type="button" id="btn-entregar" class="clave" hidden title="Entregar tu solución a la clase">Entregar</button>
     <button type="button" id="btn-ejecutar" class="primario" title="Ejecutar (Ctrl+Enter)">Ejecutar</button>
     <button type="button" id="btn-detener" hidden class="peligro">Detener</button>
   </div>
@@ -1121,7 +1135,6 @@
 
     <div class="sala-botones">
       <button type="button" id="btn-crear-ejercicio" class="primario">Crear ejercicio</button>
-      <button type="button" id="btn-compartir">Entregar mi solución</button>
     </div>
 
     <p id="sala-nota" class="vacio" hidden></p>
