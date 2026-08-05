@@ -734,6 +734,19 @@
   .ej-caso-par { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
   @media (max-width: 560px) { .ej-caso-par { grid-template-columns: 1fr; } }
   .ej-caso-par label { font-size: 11px; color: var(--tenue); display: block; margin-bottom: 2px; }
+  /* La advertencia de adjuntar código: se ve, pero no grita. Aparece solo
+     cuando la casilla está marcada, porque una advertencia permanente se
+     vuelve parte del decorado y deja de leerse. */
+  .ej-cuidado {
+    margin: 6px 0 0;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--aviso) 14%, transparent);
+    color: var(--aviso);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+
   #ej-aviso:empty { display: none; }
   #ej-aviso.roto { color: var(--err); white-space: pre-wrap; }
   #ej-aviso.bien { color: var(--ok); }
@@ -1159,9 +1172,12 @@
     placeholder="Enunciado: qué tiene que hacer el alumno."></textarea>
 
   <label class="ej-check">
-    <input type="checkbox" id="ej-incluir-codigo" checked>
-    <span id="ej-etiqueta-codigo">Incluir el seudocódigo que tengo en el editor</span>
+    <input type="checkbox" id="ej-incluir-codigo">
+    <span id="ej-etiqueta-codigo">Adjuntar mi código como punto de partida</span>
   </label>
+  <p id="ej-aviso-codigo" class="ej-cuidado" hidden>
+    El alumno va a ver este código al abrir el ejercicio. Si es tu solución, se la estás dando.
+  </p>
 
   <h3>Casos de prueba</h3>
   <div class="sala-fila">

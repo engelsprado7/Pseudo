@@ -76,6 +76,7 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
   const btnPublicar = document.querySelector<HTMLButtonElement>("#ej-publicar")!;
   const elComparacion = document.querySelector<HTMLSelectElement>("#ej-comparacion")!;
   const elAviso = document.querySelector<HTMLElement>("#ej-aviso")!;
+  const avisoCodigo = document.querySelector<HTMLElement>("#ej-aviso-codigo")!;
 
   const filas: FilaCaso[] = [];
 
@@ -250,7 +251,10 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
     elTitulo.value = "";
     elEnunciado.value = "";
     elComparacion.value = "contiene";
-    elIncluirCodigo.checked = true;
+    // Desmarcada a propósito: para calcular la salida esperada hace falta
+    // tener la solución en el editor, así que el camino natural terminaba
+    // publicándola junto con la consigna sin que nadie lo decidiera.
+    elIncluirCodigo.checked = false;
     agregarCaso();
   } else {
     // Se repuebla desde el `.md` guardado, no desde una copia aparte de los
@@ -276,10 +280,19 @@ export function abrirEditorDeEjercicio(opciones: OpcionesEditor): void {
 
   document.querySelector<HTMLElement>("#ej-etiqueta-codigo")!.textContent =
     editando === undefined
-      ? "Incluir el seudocódigo que tengo en el editor"
+      ? "Adjuntar mi código como punto de partida"
       : editando.codigo === null
-        ? "Adjuntar el seudocódigo que tengo en el editor"
-        : "Reemplazar el seudocódigo guardado por el del editor";
+        ? "Adjuntar mi código como punto de partida"
+        : "Reemplazar el código guardado por el que tengo en el editor";
+
+  // La advertencia aparece solo con la casilla marcada. Una advertencia
+  // permanente se vuelve parte del decorado y deja de leerse; esta tiene que
+  // llegar justo cuando la decisión se está tomando.
+  const refrescarAvisoCodigo = (): void => {
+    avisoCodigo.hidden = !elIncluirCodigo.checked;
+  };
+  elIncluirCodigo.onchange = refrescarAvisoCodigo;
+  refrescarAvisoCodigo();
 
   // Editando, "Publicar" crearía un duplicado en vez de mover el que se está
   // tocando. Se ofrece solo al crear.
