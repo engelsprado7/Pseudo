@@ -539,7 +539,24 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       enlace.avisar(r.mensaje + "\n", "roto");
       return;
     }
-    if (enlace.cargarCodigo(r.dato, item.titulo)) dialogo.close();
+
+    // Si la entrega responde a un ejercicio, se abre con su enunciado y sus
+    // casos: es lo que permite corregirla con Verificar en vez de leerla a ojo.
+    // El progreso no se registra —el id va en `null`— porque quien corrige no
+    // es quien entregó, y anotarlo falsearía la planilla.
+    if (r.dato.ejercicio !== null) {
+      const ej = await traerEjercicio(r.dato.ejercicio);
+      if (ej.ok) {
+        if (enlace.cargarEjercicioMd(ej.dato.contenido, item.titulo, r.dato.codigo, null)) {
+          dialogo.close();
+        }
+        return;
+      }
+      // El ejercicio pudo haberse borrado; la entrega sigue valiendo como código.
+      enlace.avisar("El ejercicio de esta entrega ya no está; se abre solo el código.\n", "aviso");
+    }
+
+    if (enlace.cargarCodigo(r.dato.codigo, item.titulo)) dialogo.close();
   }
 
   // --- Eventos ---

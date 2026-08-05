@@ -523,13 +523,26 @@ export async function traerEjercicio(id: string): Promise<Resultado<EjercicioPub
 }
 
 /** Trae el código de un programa compartido (enlace corto `#s=...`). */
-export async function traerPrograma(id: string): Promise<Resultado<string>> {
+export interface EntregaAbierta {
+  codigo: string;
+  /** Ejercicio al que responde, o `null` si es código suelto. */
+  ejercicio: string | null;
+}
+
+/**
+ * Trae una entrega junto con el ejercicio al que responde.
+ *
+ * El vínculo es lo que permite abrir la solución de un alumno **con su
+ * enunciado y sus casos**, y por lo tanto poder verificarla. Sin él, el docente
+ * abría un programa suelto y no tenía contra qué corregirlo.
+ */
+export async function traerPrograma(id: string): Promise<Resultado<EntregaAbierta>> {
   const c = await cliente();
   if (c === null) return { ok: false, mensaje: SIN_NUBE };
 
   const { data, error } = await c
     .from("programas")
-    .select("codigo")
+    .select("codigo, ejercicio")
     .eq("id", id)
     .single();
 
@@ -542,7 +555,8 @@ export async function traerPrograma(id: string): Promise<Resultado<string>> {
     }
     return { ok: false, mensaje: explicarError(error.message) };
   }
-  return { ok: true, dato: (data as { codigo: string }).codigo };
+  const fila = data as { codigo: string; ejercicio: string | null };
+  return { ok: true, dato: { codigo: fila.codigo, ejercicio: fila.ejercicio } };
 }
 
 // ------------------------------------------------------------------

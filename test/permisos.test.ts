@@ -27,8 +27,10 @@ const sinSala: ContextoDeSala = { usuarioId: ALUMNO, haySala: false, soyDocente:
 describe("un ejercicio asignado a la clase", () => {
   const delDocente = { tipo: "ejercicio" as const, autorId: DOCENTE };
 
-  test("el alumno solo puede llevarse una copia", () => {
-    assert.deepEqual(accionesDeItem(delDocente, comoAlumno), ["copiar"]);
+  test("el alumno no tiene acciones: un ejercicio asignado se abre y se resuelve", () => {
+    // Copiar creaba un borrador privado cuyo progreso no le llega al docente:
+    // el alumno creía estar haciendo la tarea y trabajaba en el vacío.
+    assert.deepEqual(accionesDeItem(delDocente, comoAlumno), []);
   });
 
   test("el alumno no puede editarlo ni retirarlo", () => {
@@ -42,8 +44,9 @@ describe("un ejercicio asignado a la clase", () => {
     assert.deepEqual(accionesDeItem(delDocente, comoDocente), ["editar", "retirar"]);
   });
 
-  test("el docente tampoco edita el ejercicio de un alumno", () => {
-    // Publicar no da autoría: quien lo escribió es quien lo corrige.
+  test("el docente tampoco edita el ajeno, pero sí puede reutilizarlo", () => {
+    // Publicar no da autoría: quien lo escribió es quien lo corrige. Copiar
+    // queda para el docente que quiere reutilizar el ejercicio de un colega.
     const deUnAlumno = { tipo: "ejercicio" as const, autorId: ALUMNO };
     assert.deepEqual(accionesDeItem(deUnAlumno, comoDocente), ["copiar"]);
   });
@@ -96,7 +99,7 @@ describe("sin sesión iniciada", () => {
 
   test("nada es propio, así que no se ofrece nada sobre lo ajeno", () => {
     assert.deepEqual(accionesDeItem({ tipo: "programa", autorId: ALUMNO }, anonimo), []);
-    assert.deepEqual(accionesDeItem({ tipo: "ejercicio", autorId: ALUMNO }, anonimo), ["copiar"]);
+    assert.deepEqual(accionesDeItem({ tipo: "ejercicio", autorId: ALUMNO }, anonimo), []);
   });
 });
 

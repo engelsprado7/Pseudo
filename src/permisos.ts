@@ -56,8 +56,11 @@ export function accionesDeItem(item: ItemDeSala, ctx: ContextoDeSala): AccionDeI
   if (item.tipo === "ejercicio") {
     // Retirar devuelve el ejercicio a borradores; no lo copia ni lo borra.
     if (esMio) return ["editar", "retirar"];
-    // De un ejercicio ajeno se puede hacer una copia propia para practicar.
-    return ["copiar"];
+    // Copiar es para reutilizar el ejercicio de otro docente, no para
+    // resolverlo: la copia es privada y su progreso no le llega a nadie. A un
+    // alumno le parecía la forma de "tomar" la tarea y terminaba trabajando en
+    // el vacío, así que un ejercicio asignado se abre, no se copia.
+    return ctx.soyDocente ? ["copiar"] : [];
   }
 
   // Entregas: cada quien retira la suya. El docente además modera su sala.
