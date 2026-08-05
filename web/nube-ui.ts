@@ -13,6 +13,13 @@ import { hayNube, leerConfig } from "./nube.ts";
 import { icono } from "./iconos.ts";
 import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercicio.ts";
 import { crearPanelDeClase } from "./clase.ts";
+import {
+  accionesDeItem,
+  accionesDeMiembro,
+  seccionesVisibles,
+  type AccionDeItem,
+  type ContextoDeSala,
+} from "../src/permisos.ts";
 import { alCambiarSesion, entrar, salir, usuarioActual, type Usuario } from "./auth.ts";
 import {
   actualizarEjercicio,
@@ -140,6 +147,15 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   let dejarDeEscuchar: (() => void) | null = null;
   /** Ejercicios publicados en la sala actual, para titular el progreso. */
   let listaEjercicios: Publicacion[] = [];
+
+  /** Quién soy en la sala de ahora. Es lo que consultan las reglas de permisos. */
+  function contexto(): ContextoDeSala {
+    return {
+      usuarioId: usuario?.id ?? null,
+      haySala: salaActual !== null,
+      soyDocente: salas.find((s) => s.id === salaActual)?.rol === "docente",
+    };
+  }
   const panelClase = crearPanelDeClase();
 
   // --- Render ---
@@ -214,28 +230,31 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     // HTML válido y el clic se dispararía dos veces.
     const acciones = document.createElement("div");
     acciones.className = "feed-acciones";
-    const esMio = item.autorId === usuario?.id;
+    // La regla de qué corresponde vive en src/permisos.ts, probada aparte. Acá
+    // solo se dibuja lo que esa regla devuelve: si mañana cambia un permiso, se
+    // cambia en un lugar y las pruebas lo respaldan.
+    const dibujo: Record<AccionDeItem, () => HTMLButtonElement> = {
+      asignar: () =>
+        accion("Asignar", "Darlo a la clase para que lo resuelvan", () => void publicarItem(item), "publicar", "destacada"),
+      editar: () =>
+        accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item), "editar"),
+      retirar: () =>
+        accion("Retirar", "Sacarlo de la clase y volverlo borrador", () => void despublicarItem(item), "bajar"),
+      copiar: () =>
+        accion("Copiar", "Guardar una copia en mis borradores", () => void copiarItem(item), "copiar"),
+      borrar: () =>
+        accion(
+          "Borrar",
+          item.tipo === "programa" ? "Retirar esta entrega" : "Eliminar este ejercicio",
+          () => void borrarItem(item),
+          "borrar",
+          "peligro",
+        ),
+    };
 
-    if (item.tipo === "personal") {
-      // Publicar mueve el borrador a la sala; no crea una copia.
-      if (salaActual !== null) {
-        acciones.appendChild(
-          accion("Asignar", "Darlo a la clase para que lo resuelvan", () => void publicarItem(item), "publicar", "destacada"),
-        );
-      }
-      acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item), "editar"));
-      acciones.appendChild(accion("Borrar", "Eliminar este borrador", () => void borrarItem(item), "borrar", "peligro"));
-    } else if (item.tipo === "ejercicio") {
-      if (esMio) {
-        acciones.appendChild(accion("Editar", "Cambiar el enunciado o los casos", () => void editarItem(item), "editar"));
-        acciones.appendChild(
-          accion("Retirar", "Sacarlo de la clase y volverlo borrador", () => void despublicarItem(item), "bajar"),
-        );
-      } else {
-        acciones.appendChild(accion("Copiar", "Guardar una copia en mis borradores", () => void copiarItem(item), "copiar"));
-      }
-    } else if (esMio) {
-      acciones.appendChild(accion("Borrar", "Retirar mi entrega", () => void borrarItem(item), "borrar", "peligro"));
+    for (const nombre of accionesDeItem({ tipo: item.tipo, autorId: item.autorId }, contexto())) {
+      const armar = dibujo[nombre];
+      if (armar !== undefined) acciones.appendChild(armar());
     }
 
     if (acciones.childElementCount > 0) fila.appendChild(acciones);
@@ -294,7 +313,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
    * el rol por su cuenta, así que esconder los botones es comodidad, no
    * seguridad.
    */
-  function pintarMiembros(miembros: Miembro[], soyDocente: boolean): void {
+  function pintarMiembros(miembros: Miembro[]): void {
     listaMiembros.textContent = "";
 
     for (const m of miembros) {
@@ -318,19 +337,24 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       rol.textContent = m.rol;
       fila.appendChild(rol);
 
-      if (soyDocente) {
-        const otroRol = m.rol === "docente" ? "alumno" : "docente";
-        fila.appendChild(
-          accion(
-            otroRol === "docente" ? "Hacer docente" : "Hacer alumno",
-            `Pasar a ${otroRol}`,
-            () => void cambiarRolDe(m, otroRol),
-            otroRol === "docente" ? "publicar" : "bajar",
-          ),
-        );
-        if (m.id !== usuario?.id) {
+      // Quién puede administrar a quién lo decide src/permisos.ts. Aun así, la
+      // regla de verdad está en la base: `cambiar_rol` y `quitar_miembro`
+      // verifican el rol por su cuenta, así que esconder los botones es
+      // comodidad, no seguridad.
+      for (const nombre of accionesDeMiembro({ id: m.id, rol: m.rol }, contexto())) {
+        if (nombre === "quitar") {
           fila.appendChild(
             accion("Quitar", "Sacar de la sala", () => void quitarDeLaSala(m), "borrar", "peligro"),
+          );
+        } else {
+          const rol = nombre === "hacer-docente" ? "docente" : "alumno";
+          fila.appendChild(
+            accion(
+              rol === "docente" ? "Hacer docente" : "Hacer alumno",
+              `Pasar a ${rol}`,
+              () => void cambiarRolDe(m, rol),
+              rol === "docente" ? "publicar" : "bajar",
+            ),
           );
         }
       }
@@ -372,7 +396,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       return;
     }
     panelMiembros.hidden = false;
-    pintarMiembros(r.dato, salas.find((s) => s.id === salaActual)?.rol === "docente");
+    pintarMiembros(r.dato);
   }
 
   // --- Datos ---
