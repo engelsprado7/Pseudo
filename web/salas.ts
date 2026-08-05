@@ -47,13 +47,27 @@ function explicarError(mensaje: string): string {
 // Salas
 // ------------------------------------------------------------------
 
+/**
+ * Las salas donde estoy, con **mi** rol en cada una.
+ *
+ * El filtro por usuario es imprescindible, no una optimización: la política de
+ * `miembros` deja ver todas las filas de una sala propia —hace falta para la
+ * lista de miembros—, así que sin él esta consulta devuelve una fila por cada
+ * integrante. En una sala de dos, un alumno recibía también la fila del docente
+ * y terminaba tomando ese rol como propio: le aparecían los botones de
+ * administrar y el panel de la clase.
+ */
 export async function misSalas(): Promise<Resultado<Sala[]>> {
   const c = await cliente();
   if (c === null) return { ok: false, mensaje: SIN_NUBE };
 
+  const { data: sesion } = await c.auth.getUser();
+  if (sesion.user === null) return { ok: true, dato: [] };
+
   const { data, error } = await c
     .from("miembros")
-    .select("rol, salas ( id, codigo, nombre )");
+    .select("rol, salas ( id, codigo, nombre )")
+    .eq("usuario", sesion.user.id);
 
   if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
 

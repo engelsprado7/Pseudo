@@ -233,11 +233,13 @@ create policy "leer ejercicios de mis salas" on ejercicios
   );
 
 drop policy if exists "publicar ejercicio" on ejercicios;
+-- Asignar a la clase es cosa del docente. Escribir ejercicios propios lo puede
+-- hacer cualquiera —quedan sin sala, privados—; lo reservado es darlos al curso.
 create policy "publicar ejercicio" on ejercicios
   for insert to authenticated
   with check (
     autor = auth.uid()
-    and (sala is null or es_miembro(sala))
+    and (sala is null or es_docente(sala))
   );
 
 -- El `with check` mira la fila *después* del cambio: sin la condición de la
@@ -249,7 +251,7 @@ create policy "editar mi ejercicio" on ejercicios
   using (autor = auth.uid())
   with check (
     autor = auth.uid()
-    and (sala is null or es_miembro(sala))
+    and (sala is null or es_docente(sala))
   );
 
 drop policy if exists "borrar ejercicio" on ejercicios;

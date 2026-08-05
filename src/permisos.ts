@@ -46,8 +46,11 @@ export function accionesDeItem(item: ItemDeSala, ctx: ContextoDeSala): AccionDeI
 
   if (item.tipo === "personal") {
     // Un borrador solo lo ve su autor, así que llegar acá ya implica que es
-    // propio. Asignar necesita una sala a la cual asignarlo.
-    return ctx.haySala ? ["asignar", "editar", "borrar"] : ["editar", "borrar"];
+    // propio. Asignar es dar tarea a la clase: hace falta una sala, y ser quien
+    // la da. Un alumno escribe sus ejercicios, pero no le pone deberes al curso.
+    return ctx.haySala && ctx.soyDocente
+      ? ["asignar", "editar", "borrar"]
+      : ["editar", "borrar"];
   }
 
   if (item.tipo === "ejercicio") {
@@ -60,6 +63,40 @@ export function accionesDeItem(item: ItemDeSala, ctx: ContextoDeSala): AccionDeI
   // Entregas: cada quien retira la suya. El docente además modera su sala.
   if (esMio) return ["borrar"];
   return ctx.soyDocente ? ["borrar"] : [];
+}
+
+export interface FilaDeMembresia {
+  usuario: string;
+  sala: string;
+  rol: "docente" | "alumno";
+}
+
+/**
+ * De todas las membresías visibles, quedarse solo con las propias.
+ *
+ * Existe porque la base deja ver las filas de los demás integrantes de una sala
+ * propia —hace falta para la lista de miembros—, así que "las salas donde
+ * estoy" no es lo mismo que "las filas que puedo leer". Confundirlas hizo que
+ * un alumno tomara el rol del docente como propio y viera sus botones.
+ *
+ * Va acá, junto a los permisos, porque de esto sale mi rol, y de mi rol sale
+ * todo lo demás.
+ */
+export function misMembresias(
+  filas: FilaDeMembresia[],
+  miId: string | null,
+): FilaDeMembresia[] {
+  if (miId === null) return [];
+  return filas.filter((f) => f.usuario === miId);
+}
+
+/** Mi rol en una sala, o `null` si no estoy en ella. */
+export function miRolEn(
+  filas: FilaDeMembresia[],
+  miId: string | null,
+  sala: string,
+): "docente" | "alumno" | null {
+  return misMembresias(filas, miId).find((f) => f.sala === sala)?.rol ?? null;
 }
 
 export type AccionDeMiembro = "hacer-docente" | "hacer-alumno" | "quitar";

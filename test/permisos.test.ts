@@ -10,6 +10,8 @@ import assert from "node:assert/strict";
 import {
   accionesDeItem,
   accionesDeMiembro,
+  miRolEn,
+  misMembresias,
   seccionesVisibles,
   type ContextoDeSala,
 } from "../src/permisos.ts";
@@ -50,8 +52,13 @@ describe("un ejercicio asignado a la clase", () => {
 describe("un borrador propio", () => {
   const borrador = { tipo: "personal" as const, autorId: ALUMNO };
 
-  test("con una sala se puede asignar, editar y borrar", () => {
-    assert.deepEqual(accionesDeItem(borrador, comoAlumno), ["asignar", "editar", "borrar"]);
+  test("el docente puede asignarlo a la clase", () => {
+    const suyo = { tipo: "personal" as const, autorId: DOCENTE };
+    assert.deepEqual(accionesDeItem(suyo, comoDocente), ["asignar", "editar", "borrar"]);
+  });
+
+  test("un alumno lo escribe y lo edita, pero no le pone tarea al curso", () => {
+    assert.deepEqual(accionesDeItem(borrador, comoAlumno), ["editar", "borrar"]);
   });
 
   test("sin sala no se ofrece asignar: no hay a quién", () => {
@@ -114,6 +121,44 @@ describe("administrar miembros", () => {
     const acciones = accionesDeMiembro({ id: DOCENTE, rol: "docente" }, comoDocente);
     assert.ok(!acciones.includes("quitar"), "para irse está salir de la sala");
     assert.deepEqual(acciones, ["hacer-alumno"]);
+  });
+});
+
+describe("mi rol sale de mi propia membresía", () => {
+  // La base deja ver las filas de los demás integrantes de una sala propia, así
+  // que "lo que puedo leer" no es "donde estoy". Confundirlas le dio a un alumno
+  // los botones del docente.
+  const filas = [
+    { usuario: DOCENTE, sala: "s1", rol: "docente" as const },
+    { usuario: ALUMNO, sala: "s1", rol: "alumno" as const },
+    { usuario: OTRO, sala: "s1", rol: "alumno" as const },
+  ];
+
+  test("un alumno no hereda el rol del docente de su sala", () => {
+    assert.equal(miRolEn(filas, ALUMNO, "s1"), "alumno");
+  });
+
+  test("el docente sí es docente", () => {
+    assert.equal(miRolEn(filas, DOCENTE, "s1"), "docente");
+  });
+
+  test("las filas ajenas no cuentan como salas propias", () => {
+    assert.deepEqual(misMembresias(filas, ALUMNO), [
+      { usuario: ALUMNO, sala: "s1", rol: "alumno" },
+    ]);
+  });
+
+  test("una sala con varios integrantes aparece una sola vez", () => {
+    assert.equal(misMembresias(filas, ALUMNO).length, 1, "sin filtrar salían tres");
+  });
+
+  test("sin sesión no hay salas propias", () => {
+    assert.deepEqual(misMembresias(filas, null), []);
+    assert.equal(miRolEn(filas, null, "s1"), null);
+  });
+
+  test("una sala donde no estoy no da rol", () => {
+    assert.equal(miRolEn(filas, ALUMNO, "s2"), null);
   });
 });
 
