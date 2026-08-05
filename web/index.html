@@ -603,6 +603,21 @@
   }
   #sala-pie:has(#sala-usuario:empty) { display: none; }
 
+  /* Aviso dentro del diálogo: la consola del editor queda tapada por el modal,
+     así que una acción hecha desde acá tiene que responder acá. */
+  #sala-nota {
+    margin: 0 0 10px;
+    padding: 7px 10px;
+    border-radius: 7px;
+    background: color-mix(in srgb, var(--ok) 12%, transparent);
+    color: var(--ok);
+    font-size: 12.5px;
+  }
+  #sala-nota.roto {
+    background: color-mix(in srgb, var(--err) 12%, transparent);
+    color: var(--err);
+  }
+
   /* Progreso de la clase */
   #lista-progreso { display: flex; flex-direction: column; gap: 8px; }
   .prog {
@@ -1003,6 +1018,7 @@
       <button type="button" id="btn-compartir">Entregar mi solución</button>
     </div>
 
+    <p id="sala-nota" class="vacio" hidden></p>
     <div id="sala-secciones"></div>
 
     <section id="sala-progreso" class="seccion-feed" hidden>

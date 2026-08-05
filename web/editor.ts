@@ -268,14 +268,26 @@ function refrescarCabeceraArchivo(): void {
  */
 let claveDelEjercicio: string | null = null;
 
+/**
+ * Ranura del programa suelto, el que no pertenece a ningún ejercicio.
+ *
+ * Sin esto era el único contexto que sí se perdía al cambiar de ejercicio, y
+ * era la única razón que le quedaba al aviso de descarte. Dándole su lugar, el
+ * modelo queda parejo: cada contexto —cada ejercicio y el programa libre—
+ * guarda lo suyo, y no hay nada de qué avisar.
+ */
+const RANURA_LIBRE = "__libre__";
+
 function claveTrabajo(id: string): string {
   return `pseudo:trabajo:${id}`;
 }
 
 function guardarTrabajo(): void {
-  if (claveDelEjercicio === null) return;
   try {
-    localStorage.setItem(claveTrabajo(claveDelEjercicio), vista.state.doc.toString());
+    localStorage.setItem(
+      claveTrabajo(claveDelEjercicio ?? RANURA_LIBRE),
+      vista.state.doc.toString(),
+    );
   } catch {
     // Almacenamiento lleno: se pierde el borrador, no el editor.
   }
@@ -1007,7 +1019,19 @@ selector.addEventListener("change", () => {
   const archivo = selector.value;
 
   if (archivo === "") {
+    // Volver a "Sin ejercicio" devuelve el programa suelto en el que estabas,
+    // igual que abrir un ejercicio devuelve el suyo.
+    guardarTrabajo();
     deseleccionarEjercicio();
+    const libre = trabajoGuardado(RANURA_LIBRE);
+    if (libre !== null && libre !== vista.state.doc.toString()) {
+      nombreArchivo = conExtension("programa");
+      manejadorArchivo = undefined;
+      reemplazarContenido(libre);
+      referenciaGuardada = libre;
+      refrescarCabeceraArchivo();
+      anexar("Volviste a tu programa.\n", "fin");
+    }
     return;
   }
 
@@ -1102,7 +1126,10 @@ notaGuardado.textContent = soportaGuardadoDirecto()
 function confirmarDescarte(accion: string): boolean {
   if (!hayCambiosSinGuardar()) return true;
 
-  if (claveDelEjercicio !== null && manejadorArchivo === undefined) {
+  // Todo contexto guarda lo suyo, así que cambiar de uno a otro no pierde nada.
+  // Lo único que queda viejo es el archivo abierto en disco, y guardarlo sigue
+  // siendo decisión de quien escribe.
+  if (manejadorArchivo === undefined) {
     guardarTrabajo();
     return true;
   }
