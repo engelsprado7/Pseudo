@@ -49,6 +49,24 @@ import {
   type Sala,
 } from "./salas.ts";
 
+/** Todo lo que hace falta para abrir un ejercicio en el editor. */
+export interface EjercicioParaAbrir {
+  markdown: string;
+  titulo: string;
+  /** Código que trae: el adjunto del ejercicio, o el que alguien entregó. */
+  codigo: string | null;
+  /** Id en la sala, o `null` si su progreso no debe registrarse. */
+  idRemoto: string | null;
+  /**
+   * Clave con la que se recuerda el trabajo en curso.
+   *
+   * `null` significa que no hay trabajo que recordar ni restaurar: es lo que
+   * corresponde al abrir la entrega de otra persona, donde siempre hay que ver
+   * lo que esa persona mandó y nunca una copia local.
+   */
+  ranura: string | null;
+}
+
 export interface Enlace {
   /** Código que hay en el editor ahora. */
   codigoActual: () => string;
@@ -60,13 +78,7 @@ export interface Enlace {
    * Carga un ejercicio publicado: el enunciado y, si trae, su código.
    * Devuelve `false` si el usuario canceló.
    */
-  cargarEjercicioMd: (
-    markdown: string,
-    titulo: string,
-    codigo: string | null,
-    /** Id en la sala, o `null` si es un borrador propio: eso no cuenta para el progreso. */
-    idRemoto: string | null,
-  ) => boolean;
+  cargarEjercicioMd: (ejercicio: EjercicioParaAbrir) => boolean;
   /** El `.md` del ejercicio abierto más el código del editor, o `null`. */
   ejercicioAbierto: () => Promise<{
     titulo: string;
@@ -529,7 +541,17 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       // Un borrador es privado: practicar en él no tiene por qué aparecer en
       // el panel del docente, así que no se manda su id.
       const idParaProgreso = item.tipo === "ejercicio" ? item.id : null;
-      if (enlace.cargarEjercicioMd(r.dato.contenido, item.titulo, r.dato.codigo, idParaProgreso)) {
+      if (
+        enlace.cargarEjercicioMd({
+          markdown: r.dato.contenido,
+          titulo: item.titulo,
+          codigo: r.dato.codigo,
+          idRemoto: idParaProgreso,
+          // Tanto un ejercicio asignado como un borrador propio son cosas en
+          // las que uno trabaja: su avance se recuerda por separado.
+          ranura: item.id,
+        })
+      ) {
         dialogo.close();
       }
       return;
@@ -553,9 +575,16 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     if (r.dato.ejercicio !== null) {
       const ej = await traerEjercicio(r.dato.ejercicio);
       if (ej.ok) {
-        const idParaProgreso = esMia ? r.dato.ejercicio : null;
         if (
-          enlace.cargarEjercicioMd(ej.dato.contenido, item.titulo, r.dato.codigo, idParaProgreso)
+          enlace.cargarEjercicioMd({
+            markdown: ej.dato.contenido,
+            titulo: item.titulo,
+            codigo: r.dato.codigo,
+            idRemoto: esMia ? r.dato.ejercicio : null,
+            // La propia sigue siendo trabajo en curso; la de otro es un envío
+            // cerrado, y hay que ver siempre lo que mandó, no lo que uno tenga.
+            ranura: esMia ? r.dato.ejercicio : null,
+          })
         ) {
           dialogo.close();
         }

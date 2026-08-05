@@ -278,11 +278,21 @@ let claveDelEjercicio: string | null = null;
  */
 const RANURA_LIBRE = "__libre__";
 
+/**
+ * Marca de "lo que está abierto no es trabajo mío".
+ *
+ * Se usa al mirar la entrega de otra persona: no hay que restaurar nada encima
+ * —siempre se ve lo que mandó— ni guardar lo que uno toque, porque iría a parar
+ * a la ranura del programa suelto y le pisaría a uno su propio código.
+ */
+const SIN_RANURA = "__ajeno__";
+
 function claveTrabajo(id: string): string {
   return `pseudo:trabajo:${id}`;
 }
 
 function guardarTrabajo(): void {
+  if (claveDelEjercicio === SIN_RANURA) return;
   try {
     localStorage.setItem(
       claveTrabajo(claveDelEjercicio ?? RANURA_LIBRE),
@@ -1425,7 +1435,7 @@ void iniciarNubeUI({
     return true;
   },
 
-  cargarEjercicioMd(markdown, titulo, codigo, idRemoto) {
+  cargarEjercicioMd({ markdown, titulo, codigo, idRemoto, ranura }) {
     const leido = leerEjercicio(markdown);
     if (!leido.ok) {
       const detalle = leido.errores.map((e) => `línea ${e.linea}: ${e.mensaje}`).join("\n");
