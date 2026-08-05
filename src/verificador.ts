@@ -23,7 +23,6 @@ import type {
   Sentencia,
   Subprograma,
   TipoDecl,
-  TipoSimple,
   Variable,
 } from "./ast.ts";
 import type { Posicion } from "./token.ts";

@@ -41,7 +41,6 @@ import {
   nombreTipoDe,
   real,
   texto,
-  totalCeldas,
   type Valor,
 } from "./valores.ts";
 

@@ -42,6 +42,7 @@ import { icono } from "./iconos.ts";
 import { tokenizar } from "../src/lexer.ts";
 import { parsear } from "../src/parser.ts";
 import { diagramasDe } from "../src/diagrama.ts";
+import { contenidoAlAbrir, seGuardaElAvance } from "../src/apertura.ts";
 
 /** Punto de partida de un programa en blanco. El cursor va en la línea de adentro. */
 const ESQUELETO = "Inicio\n    \nFin\n";
@@ -292,7 +293,7 @@ function claveTrabajo(id: string): string {
 }
 
 function guardarTrabajo(): void {
-  if (claveDelEjercicio === SIN_RANURA) return;
+  if (!seGuardaElAvance(claveDelEjercicio === SIN_RANURA ? null : claveDelEjercicio)) return;
   try {
     localStorage.setItem(
       claveTrabajo(claveDelEjercicio ?? RANURA_LIBRE),
@@ -1457,18 +1458,26 @@ void iniciarNubeUI({
     // adentro. Parecía que abrir no había hecho nada. Sin código lo que
     // corresponde es una hoja limpia para resolverlo, no la solución de un
     // ejercicio distinto.
-    // Si ya trabajaste en este ejercicio, se recupera tu versión; si es la
-    // primera vez, el código que trae (o una hoja limpia).
-    const clave = idRemoto ?? `md:${titulo}`;
-    const previo = trabajoGuardado(clave);
-    const contenido = previo ?? codigo ?? ESQUELETO;
+    // Si ya trabajaste en esto, se recupera tu versión; si es la primera vez,
+    // el código que trae (o una hoja limpia).
+    //
+    // Sin ranura no hay nada que recuperar, y es a propósito: al abrir la
+    // entrega de otra persona hay que ver siempre lo que esa persona mandó.
+    // Deducir la clave del título hacía que la copia local de quien corregía le
+    // ganara al código del alumno, y sus cambios parecieran no llegar nunca.
+    const contenido = contenidoAlAbrir({
+      ranura,
+      codigo,
+      guardado: ranura === null ? null : trabajoGuardado(ranura),
+      esqueleto: ESQUELETO,
+    });
 
     // Antes de pisar el editor, se guarda lo del ejercicio que estaba abierto.
     guardarTrabajo();
 
     nombreArchivo = conExtension(titulo);
     manejadorArchivo = undefined;
-    claveDelEjercicio = clave;
+    claveDelEjercicio = ranura ?? SIN_RANURA;
     reemplazarContenido(contenido);
     referenciaGuardada = contenido;
     refrescarCabeceraArchivo();
@@ -1480,8 +1489,10 @@ void iniciarNubeUI({
     mostrarEnunciado(leido.ejercicio);
     ajustarPanelInferior();
     consola.textContent = "";
+    // El mensaje se deduce de lo que realmente quedó en el editor, no de una
+    // variable paralela: si un día la regla cambia, el aviso la sigue sola.
     anexar(
-      previo !== null
+      contenido !== codigo && contenido !== ESQUELETO
         ? `Se abrió "${leido.ejercicio.titulo}" con lo que tenías escrito.\n`
         : codigo === null
           ? `Se abrió "${leido.ejercicio.titulo}". Escribí tu solución acá.\n`

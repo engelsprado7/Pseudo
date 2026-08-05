@@ -153,7 +153,6 @@ describe("el lienzo contiene el dibujo", () => {
     const vb = /viewBox="0 0 (\d+) (\d+)"/.exec(svg);
     assert.ok(vb !== null, `${nombre}: falta el viewBox`);
     const ancho = Number(vb[1]);
-    const alto = Number(vb[2]);
 
     const numeros: Array<{ x: number; y: number }> = [];
     for (const m of svg.matchAll(/<(?:line|rect|text)[^>]*?(?:x1|x)="(-?[\d.]+)"[^>]*?(?:y1|y)="(-?[\d.]+)"/g)) {

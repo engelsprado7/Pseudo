@@ -7,7 +7,13 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { claseDeApertura, comoAbrir, type ClaseDeApertura } from "../src/apertura.ts";
+import {
+  claseDeApertura,
+  comoAbrir,
+  contenidoAlAbrir,
+  seGuardaElAvance,
+  type ClaseDeApertura,
+} from "../src/apertura.ts";
 
 const YO = "u-yo";
 const OTRO = "u-otro";
@@ -83,6 +89,70 @@ describe("la entrega de otra persona", () => {
 
   test("corregirla no cuenta como progreso de quien corrige", () => {
     assert.equal(a.progreso, null, "falsearía la planilla");
+  });
+});
+
+describe("qué texto termina en el editor", () => {
+  const ESQ = "Inicio\n    \nFin\n";
+  const abrir = (ranura: string | null, codigo: string | null, guardado: string | null) =>
+    contenidoAlAbrir({ ranura, codigo, guardado, esqueleto: ESQ });
+
+  test("sin ranura se ve lo que llegó, aunque haya algo guardado", () => {
+    // Este es el bug exacto: el docente abría la entrega del alumno y veía su
+    // propia copia anterior, así que los cambios parecían no llegar nunca.
+    assert.equal(abrir(null, "codigo del alumno", "mi copia vieja"), "codigo del alumno");
+  });
+
+  test("con ranura, lo guardado gana: es tu trabajo en curso", () => {
+    assert.equal(abrir("ej1", "codigo original", "mi avance"), "mi avance");
+  });
+
+  test("con ranura y sin nada guardado, se usa el código que trae", () => {
+    assert.equal(abrir("ej1", "codigo original", null), "codigo original");
+  });
+
+  test("sin código ni guardado, una hoja limpia", () => {
+    assert.equal(abrir("ej1", null, null), ESQ);
+    assert.equal(abrir(null, null, "algo"), ESQ, "sin ranura tampoco se cuela lo guardado");
+  });
+
+  test("un ejercicio sin código adjunto no arrastra el programa anterior", () => {
+    assert.equal(abrir("ej9", null, null), ESQ);
+  });
+
+  test("solo se recuerda el avance de lo propio", () => {
+    assert.equal(seGuardaElAvance("ej1"), true);
+    assert.equal(seGuardaElAvance(null), false, "guardar lo ajeno pisaría una ranura que no es");
+  });
+});
+
+describe("la decisión y lo que se abre van juntas", () => {
+  // Estas atan las dos mitades: que `comoAbrir` decida bien no sirve si quien
+  // abre no le hace caso, y eso fue lo que pasó.
+  const ESQ = "Inicio\n    \nFin\n";
+
+  test("la entrega de otro se ve tal cual, aunque uno tenga trabajo guardado", () => {
+    const como = comoAbrir({ clase: "entrega-ajena", id: "p9", ejercicio: "ej1" });
+    const visto = contenidoAlAbrir({
+      ranura: como.ranura,
+      codigo: "lo que entregó el alumno",
+      guardado: "lo que yo tenía escrito",
+      esqueleto: ESQ,
+    });
+    assert.equal(visto, "lo que entregó el alumno");
+    assert.equal(seGuardaElAvance(como.ranura), false);
+  });
+
+  test("un ejercicio asignado devuelve el avance propio", () => {
+    const como = comoAbrir({ clase: "ejercicio-asignado", id: "ej1" });
+    const visto = contenidoAlAbrir({
+      ranura: como.ranura,
+      codigo: "andamiaje del docente",
+      guardado: "mi solución a medias",
+      esqueleto: ESQ,
+    });
+    assert.equal(visto, "mi solución a medias");
+    assert.equal(seGuardaElAvance(como.ranura), true);
   });
 });
 

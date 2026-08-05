@@ -291,11 +291,11 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       { tipo: "programa", titulo: "Entregas de la clase", vacio: "Todavía nadie entregó una solución." },
     ];
 
+    // Qué secciones tienen sentido lo decide src/permisos.ts, con pruebas.
+    const visibles = seccionesVisibles(contexto());
     for (const grupo of grupos) {
+      if (!visibles.includes(grupo.tipo)) continue;
       const propios = items.filter((i) => i.tipo === grupo.tipo);
-      // Sin sala, las secciones de la sala no vienen al caso: se ocultan en vez
-      // de mostrar un "no hay nada" que suena a error.
-      if (grupo.tipo !== "personal" && salaActual === null) continue;
 
       const seccion = document.createElement("section");
       seccion.className = "seccion-feed";
@@ -460,11 +460,9 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     await refrescarFeed();
     await refrescarMiembros();
     // La planilla vive fuera del modal, pero se entera de los mismos cambios.
-    panelClase.cambiarSala(
-      id,
-      salas.find((s) => s.id === id)?.rol === "docente",
-      listaEjercicios,
-    );
+    // El rol sale del mismo contexto que todo lo demás: calcularlo aparte era
+    // una segunda fuente de verdad, y ya sabemos cómo termina eso.
+    panelClase.cambiarSala(id, contexto().soyDocente, listaEjercicios);
   }
 
   async function recargarSalas(): Promise<void> {

@@ -59,6 +59,37 @@ export interface Apertura {
   progreso: string | null;
 }
 
+export interface Contenido {
+  /** Ranura que devolvió `comoAbrir`. */
+  ranura: string | null;
+  /** Código que trae lo que se abre: el adjunto, o el que alguien entregó. */
+  codigo: string | null;
+  /** Lo que había guardado en esa ranura, si la hay. */
+  guardado: string | null;
+  /** Con qué llenar el editor cuando no hay nada más. */
+  esqueleto: string;
+}
+
+/**
+ * Qué texto termina en el editor al abrir algo.
+ *
+ * Está separado de `comoAbrir` porque son dos errores distintos: uno es decidir
+ * mal la ranura, y el otro es decidirla bien y no hacerle caso. Lo segundo pasó
+ * —el editor seguía deduciendo la clave del título— y ninguna prueba lo vio,
+ * porque las que había cubrían la regla y no a quien la obedece.
+ */
+export function contenidoAlAbrir(o: Contenido): string {
+  // Sin ranura, lo guardado no se mira siquiera. Es lo que garantiza que la
+  // entrega de otra persona se vea tal cual llegó.
+  if (o.ranura === null) return o.codigo ?? o.esqueleto;
+  return o.guardado ?? o.codigo ?? o.esqueleto;
+}
+
+/** Si lo que se escriba debe recordarse. Falso al mirar algo ajeno. */
+export function seGuardaElAvance(ranura: string | null): boolean {
+  return ranura !== null;
+}
+
 /**
  * La tabla de decisiones. Cada fila responde a un error concreto que ocurrió.
  */
