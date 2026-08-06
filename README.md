@@ -3,7 +3,7 @@
 Lenguaje de seudocódigo en español para enseñar programación. La sintaxis y la
 semántica están definidas en `especificacion-lenguaje.md`.
 
-Estado: **completo y funcionando.** 543 pruebas. El editor web ejecuta programas,
+Estado: **completo y funcionando.** 546 pruebas. El editor web ejecuta programas,
 resalta sintaxis, subraya en vivo los errores de sintaxis y de tipos, formatea, y
 **verifica soluciones contra ejercicios automáticamente**.
 
@@ -45,7 +45,7 @@ detecta, porque es sintaxis válida de TypeScript; lo vigila
 ## Uso
 
 ```bash
-npm test                                    # 543 pruebas
+npm test                                    # 546 pruebas
 npm run tipos                               # chequeo de tipos (tsc)
 npm run build                               # genera sitio/
 npm run dev                                 # build + servidor en :8000
@@ -447,6 +447,7 @@ bin/
   indice.ts       Regenera ejercicios/indice.json
   limpiar.ts      Borra sitio/ antes de reconstruirlo
   sitio.ts        Copia index.html y los ejercicios a sitio/
+  manual.ts       Genera sitio/manual.html desde este README
   servir.ts       Servidor estático, sin dependencias
 test/
   lexer.test.ts   43 pruebas

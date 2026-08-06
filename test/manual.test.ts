@@ -101,3 +101,39 @@ describe("los ejemplos del manual", () => {
     });
   }
 });
+
+describe("la página del manual que ve el alumno", () => {
+  const html = readFileSync(RAIZ + "sitio/manual.html", "utf8");
+
+  test("se genera con todas las secciones del README", () => {
+    // Sale del mismo texto que el README: dos copias terminarían diciendo
+    // cosas distintas, y la desactualizada sería la que lee el alumno.
+    for (const seccion of [
+      "Variables y tipos",
+      "Operadores",
+      "Condicionales",
+      "Ciclos",
+      "Arreglos",
+      "Funciones y procedimientos",
+      "Errores frecuentes",
+    ]) {
+      assert.ok(html.includes(seccion), `falta la sección «${seccion}»`);
+    }
+  });
+
+  test("los ejemplos y las tablas llegaron convertidos", () => {
+    const ejemplos = (html.match(/<pre class="codigo pseudo">/g) ?? []).length;
+    assert.equal(
+      ejemplos,
+      EJEMPLOS.length,
+      "cada ejemplo del README tiene que aparecer en la página",
+    );
+    assert.ok((html.match(/<table>/g) ?? []).length >= 6, "faltan tablas");
+  });
+
+  test("no quedó Markdown sin convertir", () => {
+    const cuerpo = html.slice(html.indexOf("<main>"));
+    assert.doesNotMatch(cuerpo, /\|\s*---/, "una tabla quedó en crudo");
+    assert.doesNotMatch(cuerpo, /^#{2,4}\s/m, "un encabezado quedó en crudo");
+  });
+});

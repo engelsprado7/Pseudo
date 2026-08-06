@@ -1373,6 +1373,7 @@ for (const [selector, nombre] of [
   ["#btn-formatear", "formatear"],
   ["#btn-ejemplo", "ejemplo"],
   ["#btn-limpiar", "nuevo"],
+  ["#btn-manual", "ejemplo"],
   ["#btn-ejecutar", "ejecutar"],
   ["#btn-detener", "detener"],
   ["#btn-paso", "pasos"],
