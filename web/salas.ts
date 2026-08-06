@@ -19,6 +19,8 @@ export interface Sala {
   codigo: string;
   nombre: string;
   rol: "docente" | "alumno";
+  /** Si los alumnos ven las entregas de sus compañeros. */
+  entregasVisibles: boolean;
 }
 
 export interface Publicacion {
@@ -66,7 +68,7 @@ export async function misSalas(): Promise<Resultado<Sala[]>> {
 
   const { data, error } = await c
     .from("miembros")
-    .select("rol, salas ( id, codigo, nombre )")
+    .select("rol, salas ( id, codigo, nombre, entregas_visibles )")
     .eq("usuario", sesion.user.id);
 
   if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
@@ -74,10 +76,16 @@ export async function misSalas(): Promise<Resultado<Sala[]>> {
   const salas: Sala[] = [];
   for (const fila of data as unknown as Array<{
     rol: "docente" | "alumno";
-    salas: { id: string; codigo: string; nombre: string } | null;
+    salas: {
+      id: string;
+      codigo: string;
+      nombre: string;
+      entregas_visibles: boolean;
+    } | null;
   }>) {
     if (fila.salas === null) continue;
-    salas.push({ ...fila.salas, rol: fila.rol });
+    const { entregas_visibles, ...datos } = fila.salas;
+    salas.push({ ...datos, rol: fila.rol, entregasVisibles: entregas_visibles });
   }
   return { ok: true, dato: salas };
 }
@@ -90,7 +98,10 @@ export async function crearSala(nombre: string): Promise<Resultado<Sala>> {
   if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
 
   const fila = data as { id: string; codigo: string };
-  return { ok: true, dato: { id: fila.id, codigo: fila.codigo, nombre, rol: "docente" } };
+  return {
+    ok: true,
+    dato: { id: fila.id, codigo: fila.codigo, nombre, rol: "docente", entregasVisibles: false },
+  };
 }
 
 export async function unirseASala(codigo: string): Promise<Resultado<string>> {
@@ -162,6 +173,22 @@ export async function quitarMiembro(sala: string, usuario: string): Promise<Resu
   if (c === null) return { ok: false, mensaje: SIN_NUBE };
 
   const { error } = await c.rpc("quitar_miembro", { p_sala: sala, p_usuario: usuario });
+  if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
+  return { ok: true, dato: null };
+}
+
+/**
+ * Abre o cierra la vista de las entregas para el resto de la clase.
+ *
+ * Con un ejercicio en curso, ver el código de los compañeros es una invitación a
+ * copiar; terminado el ejercicio, comparar soluciones es una buena actividad. Lo
+ * decide el docente, y lo hace cumplir RLS, no la interfaz.
+ */
+export async function verEntregas(sala: string, visibles: boolean): Promise<Resultado<null>> {
+  const c = await cliente();
+  if (c === null) return { ok: false, mensaje: SIN_NUBE };
+
+  const { error } = await c.rpc("ver_entregas", { p_sala: sala, p_visibles: visibles });
   if (error !== null) return { ok: false, mensaje: explicarError(error.message) };
   return { ok: true, dato: null };
 }

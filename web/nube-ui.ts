@@ -49,6 +49,7 @@ import {
   publicarEjercicio,
   registrarProgreso,
   quitarMiembro,
+  verEntregas,
   traerEjercicio,
   traerPrograma,
   unirseASala,
@@ -373,6 +374,37 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       titulo.textContent = grupo.titulo;
       seccion.appendChild(titulo);
 
+      // Quién ve las entregas es lo primero que hay que saber al mirarlas, así
+      // que se dice en el encabezado y no escondido en una configuración.
+      if (grupo.tipo === "programa") {
+        const ctx = contexto();
+        const sala = salas.find((x) => x.id === salaActual);
+        const abiertas = sala?.entregasVisibles ?? false;
+
+        const nota = document.createElement("p");
+        nota.className = "entregas-quien";
+        if (ctx.soyDocente) {
+          nota.textContent = abiertas
+            ? "La clase puede ver las entregas de todos."
+            : "Solo vos las ves. Cada alumno ve la suya.";
+          nota.appendChild(
+            accion(
+              abiertas ? "Ocultar a la clase" : "Mostrar a la clase",
+              abiertas
+                ? "Volver a que cada alumno vea solo la suya"
+                : "Dejar que comparen soluciones entre ellos",
+              () => void cambiarVisibilidad(!abiertas),
+              abiertas ? "bajar" : "publicar",
+            ),
+          );
+        } else {
+          nota.textContent = abiertas
+            ? "Podés ver las entregas de tus compañeros."
+            : "Acá solo aparece tu entrega.";
+        }
+        seccion.appendChild(nota);
+      }
+
       if (propios.length === 0) {
         const vacio = document.createElement("p");
         vacio.className = "vacio";
@@ -466,6 +498,21 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     const r = await quitarMiembro(salaActual, m.id);
     avisar(r.ok ? `${m.nombre} ya no está en la sala.` : r.mensaje, r.ok ? "ok" : "error");
     if (r.ok) await refrescarMiembros();
+  }
+
+  async function cambiarVisibilidad(visibles: boolean): Promise<void> {
+    if (salaActual === null) return;
+    const r = await verEntregas(salaActual, visibles);
+    if (!r.ok) {
+      avisar(r.mensaje, "error");
+      return;
+    }
+    avisar(
+      visibles
+        ? "La clase ya puede ver las entregas de todos."
+        : "Las entregas vuelven a ser privadas.",
+    );
+    await recargarSalas();
   }
 
   async function refrescarMiembros(): Promise<void> {

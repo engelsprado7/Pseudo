@@ -690,6 +690,19 @@
   .prog-dificil { margin-top: 7px; font-size: 12px; color: var(--tenue); line-height: 1.5; }
   .prog-dificil b { color: var(--aviso); font-weight: 500; }
 
+  /* Quién ve las entregas. Va antes de la lista porque es lo que hay que saber
+     para interpretar lo que sigue. */
+  .entregas-quien {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    margin: 0 0 9px;
+    font-size: 12.5px;
+    color: var(--tenue);
+  }
+  .entregas-quien .feed-accion { margin-left: auto; }
+
   /* Entregas agrupadas por alumno */
   .alumno-entregas {
     border: 1px solid var(--borde);

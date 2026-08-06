@@ -48,6 +48,10 @@ create table if not exists salas (
   codigo text unique not null,
   nombre text not null,
   docente uuid not null references auth.users on delete cascade,
+  -- Si los alumnos ven las entregas de sus compañeros. Falso por defecto: con
+  -- un ejercicio abierto, verlas es una invitación a copiar. El docente las
+  -- abre cuando comparar soluciones es la actividad.
+  entregas_visibles boolean not null default false,
   creada timestamptz not null default now()
 );
 
@@ -154,6 +158,12 @@ language sql stable security definer set search_path = public as $$
   )
 $$;
 
+create or replace function entregas_a_la_vista(s uuid)
+returns boolean
+language sql stable security definer set search_path = public as $$
+  select coalesce((select entregas_visibles from salas where id = s), false)
+$$;
+
 alter table perfiles enable row level security;
 alter table salas enable row level security;
 alter table miembros enable row level security;
@@ -208,8 +218,15 @@ create policy "salir de la sala" on miembros
 -- Programas y ejercicios: se leen si sos miembro; se escriben solo en tu propia
 -- sala y a tu propio nombre. Borra el autor o el docente de la sala.
 drop policy if exists "leer programas de mis salas" on programas;
+-- Cada quien ve la suya; el docente, todas. El resto de la clase solo si el
+-- docente lo habilitó.
 create policy "leer programas de mis salas" on programas
-  for select to authenticated using (es_miembro(sala));
+  for select to authenticated
+  using (
+    autor = auth.uid()
+    or es_docente(sala)
+    or (es_miembro(sala) and entregas_a_la_vista(sala))
+  );
 
 drop policy if exists "compartir programa" on programas;
 create policy "compartir programa" on programas
@@ -385,6 +402,17 @@ begin
   if not found then
     raise exception 'Esa persona no está en la sala.';
   end if;
+end $$;
+
+-- Solo el docente abre y cierra la vista de las entregas para la clase.
+create or replace function ver_entregas(p_sala uuid, p_visibles boolean)
+returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not es_docente(p_sala) then
+    raise exception 'Solo un docente de la sala puede cambiar esto.';
+  end if;
+  update salas set entregas_visibles = p_visibles where id = p_sala;
 end $$;
 
 -- ------------------------------------------------------------------
