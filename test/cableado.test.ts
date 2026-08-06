@@ -87,3 +87,42 @@ describe("cada regla tiene un solo dueño", () => {
     assert.match(web, /from "\.\.\/src\/apertura\.ts"/);
   });
 });
+
+describe("toda acción de la sala responde algo", () => {
+  const ui = leer("web/nube-ui.ts");
+
+  test("no queda ninguna acción avisando solo a la consola", () => {
+    // La consola del editor está detrás del diálogo desde el cual se disparan
+    // estas acciones, así que un mensaje que solo va ahí no lo lee nadie. El
+    // único uso legítimo de `enlace.avisar` es el helper que manda a las dos.
+    const directas = (ui.match(/enlace\.avisar\(/g) ?? []).length;
+    assert.equal(
+      directas,
+      1,
+      "cada acción debe pasar por `avisar`, que muestra el aviso flotante además de registrar",
+    );
+  });
+
+  test("el helper manda al aviso flotante y a la consola", () => {
+    assert.match(ui, /function avisar\([\s\S]*?notificar\(/);
+    assert.match(ui, /function avisar\([\s\S]*?enlace\.avisar\(/);
+  });
+
+  test("los mensajes no traen saltos de línea propios", () => {
+    // El salto lo agrega el helper para la consola; en el aviso flotante sobra
+    // y deja una línea vacía.
+    const conSalto = ui.match(/\bavisar\((?!mensaje)[^;]*?\\n/g) ?? [];
+    assert.deepEqual(conSalto, [], "el salto lo pone el helper, no cada mensaje");
+  });
+
+  test("cada rama de un resultado avisa: la buena y la mala", () => {
+    // Un error silencioso es peor que uno ruidoso: el usuario cree que
+    // funcionó y sigue adelante.
+    for (const fn of ["publicarItem", "despublicarItem", "borrarItem", "copiarItem"]) {
+      const i = ui.indexOf(`async function ${fn}`);
+      assert.notEqual(i, -1, `no encontré ${fn}`);
+      const cuerpo = ui.slice(i, ui.indexOf("\n  }", i));
+      assert.match(cuerpo, /avisar\(/, `${fn} no responde nada`);
+    }
+  });
+});

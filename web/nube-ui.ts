@@ -398,7 +398,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   async function cambiarRolDe(m: Miembro, rol: "docente" | "alumno"): Promise<void> {
     if (salaActual === null) return;
     const r = await cambiarRol(salaActual, m.id, rol);
-    avisar(r.ok ? `${m.nombre} ahora es ${rol} de la sala.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
+    avisar(r.ok ? `${m.nombre} ahora es ${rol} de la sala.` : r.mensaje, r.ok ? "ok" : "error");
     // El propio rol puede haber cambiado: hay que rehacer salas y acciones.
     if (r.ok) await recargarSalas();
   }
@@ -407,7 +407,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     if (salaActual === null) return;
     if (!confirm(`¿Sacar a ${m.nombre} de la sala?`)) return;
     const r = await quitarMiembro(salaActual, m.id);
-    avisar(r.ok ? `${m.nombre} ya no está en la sala.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
+    avisar(r.ok ? `${m.nombre} ya no está en la sala.` : r.mensaje, r.ok ? "ok" : "error");
     if (r.ok) await refrescarMiembros();
   }
 
@@ -503,13 +503,13 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   async function publicarItem(item: ItemFeed): Promise<void> {
     if (salaActual === null) return;
     const r = await publicarBorrador(item.id, salaActual);
-    avisar(r.ok ? `"${item.titulo}" ya está asignado a la clase.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
+    avisar(r.ok ? `"${item.titulo}" ya está asignado a la clase.` : r.mensaje, r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
   async function despublicarItem(item: ItemFeed): Promise<void> {
     const r = await despublicarEjercicio(item.id);
-    avisar(r.ok ? `"${item.titulo}" volvió a tus borradores.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
+    avisar(r.ok ? `"${item.titulo}" volvió a tus borradores.` : r.mensaje, r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
@@ -520,14 +520,14 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       item.tipo === "programa"
         ? await borrarPrograma(item.id)
         : await borrarEjercicio(item.id);
-    avisar(r.ok ? `Se borró "${item.titulo}".\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
+    avisar(r.ok ? `Se borró "${item.titulo}".` : r.mensaje, r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
   /** Se lleva una copia propia de un ejercicio ajeno. */
   async function copiarItem(item: ItemFeed): Promise<void> {
     const r = await copiarEjercicio(item.id);
-    avisar(r.ok ? `Se guardó una copia de "${item.titulo}" en tus ejercicios.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
+    avisar(r.ok ? `Se guardó una copia de "${item.titulo}" en tus ejercicios.` : r.mensaje, r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
@@ -756,7 +756,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
         enlace.codigoActual(),
         enlace.ejercicioDeLaSala(),
       );
-      avisar(r.ok ? `Entregaste tu solución de "${nombre}".\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
+      avisar(r.ok ? `Entregaste tu solución de "${nombre}".` : r.mensaje, r.ok ? "ok" : "error");
       if (r.ok) await refrescarFeed();
     })();
   });
