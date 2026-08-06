@@ -87,7 +87,15 @@ Inicio
 Fin
 ```
 
-Un comentario de una línea empieza con `//`. Para varias líneas seguidas, `/* ... */`.
+### Comentarios
+
+Un comentario es texto que el programa ignora: sirve para explicarle a quien lo
+lea —incluido uno mismo dentro de un mes— qué hace el código y por qué.
+
+| Forma | Para qué |
+|---|---|
+| `// ...` | Una línea. Desde las dos barras hasta el final del renglón. |
+| `/* ... */` | Varias líneas seguidas. |
 
 ```pseudo
 /* Calcula el área de un rectángulo.
@@ -101,7 +109,15 @@ Inicio
 Fin
 ```
 
-Los de bloque no anidan: el primer `*/` cierra el comentario.
+Un `/* ... */` puede ir también en medio de una línea, como en
+`Definir base Como Real /* en metros */`.
+
+Dos detalles que conviene saber:
+
+- **No se anidan.** El primer `*/` cierra el comentario, aunque hayas abierto
+  otro `/*` adentro.
+- **Si te olvidás de cerrarlo**, el editor te avisa señalando la línea donde
+  empezó, que es donde hay que ir a arreglarlo.
 
 ### Variables y tipos
 
