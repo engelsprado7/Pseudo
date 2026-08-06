@@ -11,6 +11,7 @@
  */
 import { hayNube, leerConfig } from "./nube.ts";
 import { icono } from "./iconos.ts";
+import { notificar } from "./avisos.ts";
 import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercicio.ts";
 import { crearPanelDeClase } from "./clase.ts";
 import { claseDeApertura, comoAbrir } from "../src/apertura.ts";
@@ -161,6 +162,18 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   let dejarDeEscuchar: (() => void) | null = null;
   /** Ejercicios publicados en la sala actual, para titular el progreso. */
   let listaEjercicios: Publicacion[] = [];
+
+  /**
+   * Responde a una acción de la sala.
+   *
+   * Va a las dos partes a propósito: el aviso flotante es lo que el usuario ve
+   * —incluso con un diálogo abierto encima—, y la consola guarda el registro de
+   * lo que fue pasando, que sirve para reconstruir qué se hizo.
+   */
+  function avisar(mensaje: string, tipo: "ok" | "error" = "ok"): void {
+    notificar(mensaje, tipo);
+    enlace.avisar(mensaje + "\n", tipo === "error" ? "roto" : "fin");
+  }
 
   /** Quién soy en la sala de ahora. Es lo que consultan las reglas de permisos. */
   function contexto(): ContextoDeSala {
@@ -385,10 +398,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   async function cambiarRolDe(m: Miembro, rol: "docente" | "alumno"): Promise<void> {
     if (salaActual === null) return;
     const r = await cambiarRol(salaActual, m.id, rol);
-    enlace.avisar(
-      r.ok ? `${m.nombre} ahora es ${rol} de la sala.\n` : r.mensaje + "\n",
-      r.ok ? "fin" : "roto",
-    );
+    avisar(r.ok ? `${m.nombre} ahora es ${rol} de la sala.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
     // El propio rol puede haber cambiado: hay que rehacer salas y acciones.
     if (r.ok) await recargarSalas();
   }
@@ -397,10 +407,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     if (salaActual === null) return;
     if (!confirm(`¿Sacar a ${m.nombre} de la sala?`)) return;
     const r = await quitarMiembro(salaActual, m.id);
-    enlace.avisar(
-      r.ok ? `${m.nombre} ya no está en la sala.\n` : r.mensaje + "\n",
-      r.ok ? "fin" : "roto",
-    );
+    avisar(r.ok ? `${m.nombre} ya no está en la sala.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
     if (r.ok) await refrescarMiembros();
   }
 
@@ -442,7 +449,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       if (programas.ok) {
         items.push(...programas.dato.map((p) => ({ ...p, tipo: "programa" as const })));
       }
-      if (!ejercicios.ok) enlace.avisar(ejercicios.mensaje + "\n", "roto");
+      if (!ejercicios.ok) avisar(ejercicios.mensaje, "error");
     }
 
     items.sort((a, b) => b.creado.localeCompare(a.creado));
@@ -474,7 +481,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   async function recargarSalas(): Promise<void> {
     const resultado = await misSalas();
     if (!resultado.ok) {
-      enlace.avisar(resultado.mensaje + "\n", "roto");
+      avisar(resultado.mensaje, "error");
       return;
     }
     salas = resultado.dato;
@@ -486,7 +493,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   async function editarItem(item: ItemFeed): Promise<void> {
     const r = await traerEjercicio(item.id);
     if (!r.ok) {
-      enlace.avisar(r.mensaje + "\n", "roto");
+      avisar(r.mensaje, "error");
       return;
     }
     abrirFormulario({ id: item.id, contenido: r.dato.contenido, codigo: r.dato.codigo });
@@ -496,19 +503,13 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   async function publicarItem(item: ItemFeed): Promise<void> {
     if (salaActual === null) return;
     const r = await publicarBorrador(item.id, salaActual);
-    enlace.avisar(
-      r.ok ? `"${item.titulo}" ya está asignado a la clase.\n` : r.mensaje + "\n",
-      r.ok ? "fin" : "roto",
-    );
+    avisar(r.ok ? `"${item.titulo}" ya está asignado a la clase.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
   async function despublicarItem(item: ItemFeed): Promise<void> {
     const r = await despublicarEjercicio(item.id);
-    enlace.avisar(
-      r.ok ? `"${item.titulo}" volvió a tus borradores.\n` : r.mensaje + "\n",
-      r.ok ? "fin" : "roto",
-    );
+    avisar(r.ok ? `"${item.titulo}" volvió a tus borradores.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
@@ -519,20 +520,14 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       item.tipo === "programa"
         ? await borrarPrograma(item.id)
         : await borrarEjercicio(item.id);
-    enlace.avisar(
-      r.ok ? `Se borró "${item.titulo}".\n` : r.mensaje + "\n",
-      r.ok ? "fin" : "roto",
-    );
+    avisar(r.ok ? `Se borró "${item.titulo}".\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
   /** Se lleva una copia propia de un ejercicio ajeno. */
   async function copiarItem(item: ItemFeed): Promise<void> {
     const r = await copiarEjercicio(item.id);
-    enlace.avisar(
-      r.ok ? `Se guardó una copia de "${item.titulo}" en tus ejercicios.\n` : r.mensaje + "\n",
-      r.ok ? "fin" : "roto",
-    );
+    avisar(r.ok ? `Se guardó una copia de "${item.titulo}" en tus ejercicios.\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
     if (r.ok) await refrescarFeed();
   }
 
@@ -553,7 +548,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     if (clase === "ejercicio-asignado" || clase === "borrador-propio") {
       const r = await traerEjercicio(item.id);
       if (!r.ok) {
-        enlace.avisar(r.mensaje + "\n", "roto");
+        avisar(r.mensaje, "error");
         return;
       }
       const como = comoAbrir({ clase, id: item.id });
@@ -573,7 +568,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
 
     const r = await traerPrograma(item.id);
     if (!r.ok) {
-      enlace.avisar(r.mensaje + "\n", "roto");
+      avisar(r.mensaje, "error");
       return;
     }
     const como = comoAbrir({ clase, id: item.id, ejercicio: r.dato.ejercicio });
@@ -597,7 +592,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
         return;
       }
       // El ejercicio pudo haberse borrado; la entrega sigue valiendo como código.
-      enlace.avisar("El ejercicio de esta entrega ya no está; se abre solo el código.\n", "aviso");
+      avisar("El ejercicio de esta entrega ya no está; se abre solo el código.", "error");
     }
 
     if (enlace.cargarCodigo(r.dato.codigo, item.titulo)) dialogo.close();
@@ -665,14 +660,14 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
       async guardarPersonal(titulo, contenido, codigo) {
         const r = await guardarEjercicioPersonal(titulo, contenido, codigo);
         if (!r.ok) return r.mensaje;
-        enlace.avisar(`Se guardó "${titulo}" en tus ejercicios.\n`, "fin");
+        avisar(`Se guardó "${titulo}" en tus ejercicios.`);
         return null;
       },
 
       async actualizar(id, titulo, contenido, codigo) {
         const r = await actualizarEjercicio(id, titulo, contenido, codigo);
         if (!r.ok) return r.mensaje;
-        enlace.avisar(`Se guardaron los cambios de "${titulo}".\n`, "fin");
+        avisar(`Se guardaron los cambios de "${titulo}".`);
         return null;
       },
 
@@ -684,7 +679,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
           : async (titulo, contenido, codigo) => {
               const r = await publicarEjercicio(salaActual!, titulo, contenido, codigo);
               if (!r.ok) return r.mensaje;
-              enlace.avisar(`Se asignó "${titulo}" a la clase.\n`, "fin");
+              avisar(`Se asignó "${titulo}" a la clase.`);
               return null;
             },
 
@@ -702,11 +697,11 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     void (async () => {
       const r = await crearSala(nombre);
       if (!r.ok) {
-        enlace.avisar(r.mensaje + "\n", "roto");
+        avisar(r.mensaje, "error");
         return;
       }
       nombreNueva.value = "";
-      enlace.avisar(`Sala "${r.dato.nombre}" creada. Código: ${r.dato.codigo}\n`, "fin");
+      avisar(`Sala "${r.dato.nombre}" creada. Código: ${r.dato.codigo}`);
       salaActual = r.dato.id;
       await recargarSalas();
     })();
@@ -718,13 +713,13 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     void (async () => {
       const r = await unirseASala(codigo);
       if (!r.ok) {
-        enlace.avisar(r.mensaje + "\n", "roto");
+        avisar(r.mensaje, "error");
         return;
       }
       codigoUnirse.value = "";
       salaActual = r.dato;
       await recargarSalas();
-      enlace.avisar("Ya estás en la sala.\n", "fin");
+      avisar("Ya estás en la sala.");
     })();
   });
 
@@ -749,7 +744,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   document.querySelector<HTMLButtonElement>("#btn-entregar")!.addEventListener("click", () => {
     void (async () => {
       if (salaActual === null) {
-        enlace.avisar("Primero entrá a una sala.\n", "aviso");
+        avisar("Primero entrá a una sala.", "error");
         return;
       }
       const nombre = enlace.nombreActual();
@@ -761,10 +756,7 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
         enlace.codigoActual(),
         enlace.ejercicioDeLaSala(),
       );
-      enlace.avisar(
-        r.ok ? `Entregaste tu solución de "${nombre}".\n` : r.mensaje + "\n",
-        r.ok ? "fin" : "roto",
-      );
+      avisar(r.ok ? `Entregaste tu solución de "${nombre}".\n` : r.mensaje + "\n", r.ok ? "ok" : "error");
       if (r.ok) await refrescarFeed();
     })();
   });
