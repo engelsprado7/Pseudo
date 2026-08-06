@@ -16,6 +16,12 @@ import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercici
 import { crearPanelDeClase } from "./clase.ts";
 import { claseDeApertura, comoAbrir } from "../src/apertura.ts";
 import {
+  agruparPorAlumno,
+  contarEntregas,
+  fechaRelativa,
+  type GrupoDeAlumno,
+} from "../src/entregas.ts";
+import {
   accionesDeItem,
   accionesDeMiembro,
   seccionesVisibles,
@@ -294,6 +300,50 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
   }
 
   /**
+   * Un alumno con sus entregas, plegable.
+   *
+   * Empieza cerrado y muestra el conteo: la pregunta al terminar la clase es
+   * "¿cuántas entregó cada uno?", y para eso alcanza el encabezado. El detalle
+   * se abre solo para quien se quiera mirar.
+   */
+  function grupoDeAlumno(alumno: GrupoDeAlumno, todos: ItemFeed[]): HTMLElement {
+    const caja = document.createElement("details");
+    caja.className = "alumno-entregas";
+
+    const cabecera = document.createElement("summary");
+    const nombre = document.createElement("span");
+    nombre.className = "alumno-nombre";
+    nombre.textContent = alumno.nombre;
+
+    const cuenta = document.createElement("span");
+    cuenta.className = "alumno-cuenta";
+    cuenta.textContent = contarEntregas(alumno.entregas.length);
+
+    const cuando = document.createElement("span");
+    cuando.className = "alumno-ultima";
+    cuando.textContent = fechaRelativa(alumno.ultima);
+    cuando.title = new Date(alumno.ultima).toLocaleString("es");
+
+    cabecera.append(nombre, cuenta, cuando);
+    caja.appendChild(cabecera);
+
+    for (const entrega of alumno.entregas) {
+      // Se busca el ítem original para conservar sus acciones y su apertura.
+      const item = todos.find((i) => i.id === entrega.id);
+      if (item === undefined) continue;
+      const fila = filaDeItem(item);
+      const fecha = document.createElement("span");
+      fecha.className = "feed-fecha";
+      fecha.textContent = fechaRelativa(entrega.creado);
+      fecha.title = new Date(entrega.creado).toLocaleString("es");
+      // Antes de las acciones: la fila se lee "qué · cuándo · qué puedo hacer".
+      fila.insertBefore(fecha, fila.querySelector(".feed-acciones"));
+      caja.appendChild(fila);
+    }
+    return caja;
+  }
+
+  /**
    * Dibuja el feed en tres secciones con título.
    *
    * Antes era una sola lista con borradores, ejercicios de la sala y código
@@ -328,6 +378,13 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
         vacio.className = "vacio";
         vacio.textContent = grupo.vacio;
         seccion.appendChild(vacio);
+      } else if (grupo.tipo === "programa") {
+        // Las entregas van agrupadas por alumno: con cinco ejercicios y veinte
+        // alumnos, la lista plana son cien filas donde el nombre se repite y hay
+        // que ir contando de memoria cuántas entregó cada uno.
+        for (const alumno of agruparPorAlumno(propios)) {
+          seccion.appendChild(grupoDeAlumno(alumno, propios));
+        }
       } else {
         for (const item of propios) seccion.appendChild(filaDeItem(item));
       }

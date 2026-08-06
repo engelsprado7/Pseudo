@@ -9,7 +9,7 @@
   },
   "scripts": {
     "pretest": "npm run build",
-    "test": "node --test test/lexer.test.ts test/parser.test.ts test/verificador.test.ts test/interprete.test.ts test/ejercicio.test.ts test/diagrama.test.ts test/planilla.test.ts test/permisos.test.ts test/apertura.test.ts test/cableado.test.ts test/manual.test.ts test/formato.test.ts test/archivos.test.ts test/compatibilidad-node.test.ts test/humo-web.test.ts",
+    "test": "node --test test/lexer.test.ts test/parser.test.ts test/verificador.test.ts test/interprete.test.ts test/ejercicio.test.ts test/diagrama.test.ts test/planilla.test.ts test/permisos.test.ts test/apertura.test.ts test/entregas.test.ts test/cableado.test.ts test/manual.test.ts test/formato.test.ts test/archivos.test.ts test/compatibilidad-node.test.ts test/humo-web.test.ts",
     "tipos": "tsc --noEmit",
     "build": "node bin/limpiar.ts && node bin/indice.ts && esbuild web/editor.ts --bundle --splitting --format=esm --target=es2022 --minify --charset=utf8 --entry-names=editor-[hash] --chunk-names=trozo-[hash] --outdir=sitio && esbuild web/analisis.ts --bundle --format=esm --target=es2022 --charset=utf8 --outfile=sitio/analisis.js && node bin/sitio.ts && node bin/manual.ts",
     "dev": "npm run build && node bin/servir.ts",

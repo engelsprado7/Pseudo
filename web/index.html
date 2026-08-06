@@ -690,6 +690,57 @@
   .prog-dificil { margin-top: 7px; font-size: 12px; color: var(--tenue); line-height: 1.5; }
   .prog-dificil b { color: var(--aviso); font-weight: 500; }
 
+  /* Entregas agrupadas por alumno */
+  .alumno-entregas {
+    border: 1px solid var(--borde);
+    border-radius: 8px;
+    background: var(--fondo);
+    margin-bottom: 6px;
+    overflow: hidden;
+  }
+  .alumno-entregas > summary {
+    display: flex;
+    align-items: baseline;
+    gap: 9px;
+    padding: 9px 11px;
+    cursor: pointer;
+    font-size: 13px;
+    list-style: none;
+  }
+  .alumno-entregas > summary::-webkit-details-marker { display: none; }
+  /* Un triángulo propio: el nativo se ve distinto en cada navegador y acá
+     conviene que la fila entera se lea igual en todos. */
+  .alumno-entregas > summary::before {
+    content: "›";
+    color: var(--tenue);
+    transition: transform .15s ease;
+    display: inline-block;
+  }
+  .alumno-entregas[open] > summary::before { transform: rotate(90deg); }
+  .alumno-entregas > summary:hover { background: var(--panel); }
+  .alumno-nombre { font-weight: 500; }
+  .alumno-cuenta {
+    font-size: 12px;
+    color: var(--tenue);
+    padding: 1px 8px;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+  }
+  .alumno-ultima { margin-left: auto; font-size: 12px; color: var(--tenue); white-space: nowrap; }
+
+  /* Las entregas de adentro se sangran para que se lean como parte del alumno. */
+  .alumno-entregas .feed-fila {
+    margin: 0 9px 8px 26px;
+    background: var(--panel);
+  }
+  .feed-fecha {
+    font-size: 12px;
+    color: var(--tenue);
+    white-space: nowrap;
+    margin-left: auto;
+    padding-left: 8px;
+  }
+
   /* Miembros de la sala */
   #sala-miembros { margin-top: 18px; }
   #lista-miembros { display: flex; flex-direction: column; gap: 4px; }
