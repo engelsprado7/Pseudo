@@ -3,7 +3,7 @@
 Lenguaje de seudocódigo en español para enseñar programación. La sintaxis y la
 semántica están definidas en `especificacion-lenguaje.md`.
 
-Estado: **completo y funcionando.** 419 pruebas. El editor web ejecuta programas,
+Estado: **completo y funcionando.** 543 pruebas. El editor web ejecuta programas,
 resalta sintaxis, subraya en vivo los errores de sintaxis y de tipos, formatea, y
 **verifica soluciones contra ejercicios automáticamente**.
 
@@ -45,7 +45,7 @@ detecta, porque es sintaxis válida de TypeScript; lo vigila
 ## Uso
 
 ```bash
-npm test                                    # 419 pruebas
+npm test                                    # 543 pruebas
 npm run tipos                               # chequeo de tipos (tsc)
 npm run build                               # genera sitio/
 npm run dev                                 # build + servidor en :8000
@@ -69,6 +69,360 @@ errores reales que las pruebas no ven — encontró uno durante el desarrollo.
 
 `tsc --noEmit` valida los tipos si tenés TypeScript instalado, pero no hace
 falta para correr nada.
+
+## Manual del lenguaje
+
+Todo lo de esta sección está probado: `test/manual.test.ts` extrae cada ejemplo
+marcado con ```` ```pseudo ```` de este archivo, lo compila y lo ejecuta. Si algún
+día un ejemplo deja de funcionar, las pruebas fallan. Una documentación que no
+coincide con el programa es peor que no tener documentación.
+
+### Estructura de un programa
+
+Un programa mínimo es `Inicio`, lo que haga, y `Fin`.
+
+```pseudo
+Inicio
+    Escribir "Hola"
+Fin
+```
+
+Los comentarios empiezan con `//` y llegan hasta el final de la línea.
+
+### Variables y tipos
+
+Toda variable se declara antes de usarse, con `Definir ... Como <tipo>`. Varias
+del mismo tipo van separadas por comas.
+
+Los tipos son cinco:
+
+| Tipo | Para qué | Ejemplos |
+|---|---|---|
+| `Entero` | Números sin decimales | `0`, `-15`, `2026` |
+| `Real` | Números con decimales | `3.14`, `-0.5` |
+| `Texto` | Cadenas de caracteres | `"hola"`, `""` |
+| `Caracter` | Un solo carácter | `"a"`, `"ñ"` |
+| `Logico` | Verdadero o falso | `Verdadero`, `Falso` |
+
+La asignación usa una flecha, `<-`, no un signo igual. El `=` se reserva para
+preguntar si dos cosas son iguales, y así nunca se confunden.
+
+```pseudo
+Inicio
+    Definir nombre Como Texto
+    Definir edad Como Entero
+    Definir altura Como Real
+    Definir esMayor Como Logico
+
+    nombre <- "Ana"
+    edad <- 20
+    altura <- 1.65
+    esMayor <- edad >= 18
+
+    Escribir nombre, " tiene ", edad, " años"
+    Escribir "¿Es mayor? ", esMayor
+Fin
+```
+
+Un `Entero` se convierte solo a `Real` cuando hace falta, pero no al revés: eso
+perdería los decimales sin avisar.
+
+### Entrada y salida
+
+`Escribir` muestra; `Leer` pide un valor y lo guarda en una variable.
+
+`Escribir` acepta varias cosas separadas por comas y las pega una tras otra.
+Normalmente salta de línea al terminar; con `Sin Salto` deja el cursor donde
+está, que es lo que se usa para pedir datos.
+
+```pseudo
+Inicio
+    Definir a, b Como Entero
+
+    Escribir Sin Salto "Primer número: "
+    Leer a
+    Escribir Sin Salto "Segundo número: "
+    Leer b
+
+    Escribir "La suma es ", a + b
+Fin
+```
+
+### Operadores
+
+**Aritméticos**
+
+| Operador | Qué hace | Ejemplo | Resultado |
+|---|---|---|---|
+| `+` `-` `*` | Suma, resta, multiplicación | `3 * 4` | `12` |
+| `/` | División (siempre da `Real`) | `7 / 2` | `3.5` |
+| `DIV` | División entera | `7 DIV 2` | `3` |
+| `MOD` | Resto de la división | `7 MOD 2` | `1` |
+| `^` | Potencia | `2 ^ 3` | `8` |
+
+**De comparación** — el resultado es siempre `Logico`.
+
+| Operador | Significa |
+|---|---|
+| `=` | igual a |
+| `<>` | distinto de |
+| `<` `>` | menor, mayor |
+| `<=` `>=` | menor o igual, mayor o igual |
+
+**Lógicos**
+
+| Operador | Significa |
+|---|---|
+| `Y` | las dos condiciones se cumplen |
+| `O` | al menos una se cumple |
+| `No` | invierte la condición |
+
+La precedencia es la de siempre: primero `^`, después `*` `/` `DIV` `MOD`,
+después `+` `-`, después las comparaciones, y al final `Y` y `O`. Los paréntesis
+mandan sobre todo.
+
+```pseudo
+Inicio
+    Definir n Como Entero
+    n <- 7
+
+    Escribir "Mitad entera: ", n DIV 2
+    Escribir "Resto: ", n MOD 2
+    Escribir "Al cuadrado: ", n ^ 2
+    Escribir "¿Impar y positivo? ", n MOD 2 = 1 Y n > 0
+Fin
+```
+
+### Condicionales
+
+`Si ... Entonces ... FinSi`, con `SiNo` opcional. Para encadenar varias
+condiciones se escribe `SiNo Si`.
+
+```pseudo
+Inicio
+    Definir nota Como Entero
+    nota <- 8
+
+    Si nota >= 9 Entonces
+        Escribir "Excelente"
+    SiNo Si nota >= 7 Entonces
+        Escribir "Aprobado"
+    SiNo
+        Escribir "Reprobado"
+    FinSi
+Fin
+```
+
+Cuando se compara **una misma variable** contra varios valores concretos,
+`Segun` se lee mejor que una cadena de `Si`. Cada caso puede listar varios
+valores separados por comas, y `De Otro Modo` recoge lo que no encaje.
+
+```pseudo
+Inicio
+    Definir dia Como Entero
+    dia <- 6
+
+    Segun dia Hacer
+        1, 2, 3, 4, 5:
+            Escribir "Día de semana"
+        6, 7:
+            Escribir "Fin de semana"
+        De Otro Modo:
+            Escribir "Día inválido"
+    FinSegun
+Fin
+```
+
+### Ciclos
+
+**`Mientras`** repite mientras la condición se cumpla. Se comprueba *antes* de
+cada vuelta, así que puede no ejecutarse nunca.
+
+```pseudo
+Inicio
+    Definir n Como Entero
+    n <- 5
+
+    Mientras n > 0 Hacer
+        Escribir n
+        n <- n - 1
+    FinMientras
+Fin
+```
+
+**`Repetir ... Hasta Que`** comprueba *al final*, así que el cuerpo se ejecuta al
+menos una vez. Sirve para pedir un dato hasta que sea válido.
+
+```pseudo
+Inicio
+    Definir edad Como Entero
+    edad <- -1
+
+    Repetir
+        edad <- edad + 5
+    Hasta Que edad >= 18
+
+    Escribir "Edad final: ", edad
+Fin
+```
+
+**`Para`** repite una cantidad conocida de veces, llevando la cuenta sola. Con
+`Con Paso` se cambia de cuánto avanza; sin eso, avanza de a uno.
+
+```pseudo
+Inicio
+    Definir i Como Entero
+
+    Para i <- 1 Hasta 5 Hacer
+        Escribir "Vuelta ", i
+    FinPara
+
+    Para i <- 10 Hasta 0 Con Paso -2 Hacer
+        Escribir i
+    FinPara
+Fin
+```
+
+**`Para Cada`** recorre un arreglo entero sin manejar índices.
+
+```pseudo
+Inicio
+    Definir notas Como Arreglo[3] De Entero
+    Definir nota Como Entero
+
+    notas[0] <- 7
+    notas[1] <- 9
+    notas[2] <- 5
+
+    Para Cada nota En notas Hacer
+        Escribir nota
+    FinPara
+Fin
+```
+
+Los ciclos no tienen forma de cortarse por la mitad: no hay `Interrumpir` ni
+`Continuar`. Es a propósito — obliga a que la condición del ciclo diga la verdad
+sobre cuándo termina, que es justo lo que conviene aprender.
+
+### Arreglos
+
+Se declaran con su tamaño, y **el primer elemento es el 0**. Un arreglo de 30
+elementos va del `0` al `29`.
+
+```pseudo
+Inicio
+    Definir notas Como Arreglo[5] De Real
+    Definir i Como Entero
+    Definir suma, promedio Como Real
+
+    Para i <- 0 Hasta 4 Hacer
+        notas[i] <- (i + 1) * 2
+    FinPara
+
+    suma <- 0
+    Para i <- 0 Hasta 4 Hacer
+        suma <- suma + notas[i]
+    FinPara
+
+    promedio <- suma / Longitud(notas)
+    Escribir "Promedio: ", promedio
+Fin
+```
+
+### Funciones y procedimientos
+
+Un **procedimiento** hace algo. Una **función** además devuelve un valor, que se
+asigna a la variable declarada en su encabezado.
+
+La variable que devuelve la función **también se declara**, dentro de ella, como
+cualquier otra. Es lo que se olvida más seguido; el editor lo marca y dice
+exactamente qué línea agregar.
+
+```pseudo
+Funcion area <- AreaRectangulo(base Como Real, altura Como Real)
+    Definir area Como Real
+    area <- base * altura
+FinFuncion
+
+Procedimiento Saludar(nombre Como Texto)
+    Escribir "Hola, ", nombre
+FinProcedimiento
+
+Inicio
+    Saludar("Ana")
+    Escribir "Área: ", AreaRectangulo(3, 4)
+Fin
+```
+
+Los parámetros viajan **por valor**: cambiarlos adentro no afecta a quien llamó.
+Con `Por Referencia` sí se modifica el original.
+
+```pseudo
+Procedimiento Duplicar(Por Referencia n Como Entero)
+    n <- n * 2
+FinProcedimiento
+
+Inicio
+    Definir x Como Entero
+    x <- 5
+    Duplicar(x)
+    Escribir x
+Fin
+```
+
+### Funciones integradas
+
+**Numéricas**
+
+| Función | Qué devuelve |
+|---|---|
+| `Raiz(x)` | Raíz cuadrada |
+| `Abs(x)` | Valor absoluto |
+| `Trunc(x)` | Parte entera, cortando los decimales |
+| `Redondear(x)` | Entero más cercano |
+| `Techo(x)` / `Piso(x)` | Entero de arriba / de abajo |
+| `Potencia(b, e)` | `b` elevado a `e`, igual que `b ^ e` |
+| `Aleatorio(a, b)` | Entero al azar entre `a` y `b`, ambos incluidos |
+| `sen(x)` `cos(x)` `tan(x)` | Trigonométricas, en radianes |
+| `ln(x)` `exp(x)` | Logaritmo natural y exponencial |
+| `PI` | La constante π |
+
+**De texto**
+
+| Función | Qué devuelve |
+|---|---|
+| `Longitud(x)` | Cantidad de caracteres, o el tamaño de un arreglo |
+| `Subcadena(t, i, j)` | Los caracteres de la posición `i` a la `j`, **desde 0** |
+| `Mayusculas(t)` / `Minusculas(t)` | El texto convertido |
+| `ConvertirANumero(t)` | El número que representa ese texto |
+| `ConvertirATexto(x)` | El número como texto |
+| `Concatenar(a, b)` | Los dos textos unidos, igual que `a + b` |
+
+```pseudo
+Inicio
+    Definir palabra Como Texto
+    palabra <- "Programacion"
+
+    Escribir "Largo: ", Longitud(palabra)
+    Escribir "Primeras 7: ", Subcadena(palabra, 0, 6)
+    Escribir "En mayúsculas: ", Mayusculas(palabra)
+    Escribir "Raíz de 16: ", Raiz(16)
+    Escribir "Redondeo de 3.7: ", Redondear(3.7)
+Fin
+```
+
+### Errores frecuentes
+
+| Si escribís… | Pasa esto | Lo correcto |
+|---|---|---|
+| `x = 5` para asignar | El editor lo marca | `x <- 5` |
+| `x == 5` para comparar | No existe `==` | `x = 5` |
+| Usar `x` sin declararla | Error de variable no declarada | `Definir x Como Entero` |
+| `notas[5]` en un arreglo de 5 | Índice fuera de rango | Van del `0` al `4` |
+| Olvidar `FinSi`, `FinPara`… | El editor dice cuál bloque quedó abierto y en qué línea | Cerrar el bloque |
+
+El editor subraya los errores mientras escribís, sin necesidad de ejecutar. Cada
+mensaje dice la línea, qué pasó y —cuando se puede— cómo corregirlo.
 
 ## Estructura
 
