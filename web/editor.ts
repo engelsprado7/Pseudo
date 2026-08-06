@@ -249,6 +249,59 @@ function refrescarCabeceraArchivo(): void {
 }
 
 /**
+ * Renombrar el programa desde la barra.
+ *
+ * Antes el nombre solo se podía cambiar en "Guardar como…", que además guarda:
+ * para ponerle título a lo que estás escribiendo había que descargarlo. Ahora
+ * el nombre de la barra es un control, y se edita donde se lee.
+ */
+const campoNombre = document.querySelector<HTMLInputElement>("#campo-nombre")!;
+
+function empezarARenombrar(): void {
+  // Se propone sin la extensión: es lo único que el alumno quiere cambiar, y
+  // seleccionarlo entero deja escribir directo encima.
+  campoNombre.value = nombreArchivo.replace(new RegExp(`\\${EXTENSION}$`, "i"), "");
+  elNombre.hidden = true;
+  campoNombre.hidden = false;
+  campoNombre.focus();
+  campoNombre.select();
+}
+
+function terminarDeRenombrar(guardar: boolean): void {
+  if (campoNombre.hidden) return;
+  const propuesto = campoNombre.value.trim();
+  campoNombre.hidden = true;
+  elNombre.hidden = false;
+
+  if (!guardar || propuesto === "") return;
+
+  // Los caracteres que un sistema de archivos rechaza se cambian por guiones en
+  // vez de rechazar el nombre entero: el alumno quiso llamarlo así, y discutirle
+  // por una barra no le enseña nada.
+  const limpio = propuesto.replace(/[\\/:*?"<>|]/g, "-");
+  nombreArchivo = conExtension(limpio);
+  // El archivo de disco anterior ya no corresponde a este nombre: el próximo
+  // Guardar tiene que preguntar dónde, no pisar el viejo.
+  manejadorArchivo = undefined;
+  refrescarCabeceraArchivo();
+  recordarSesion();
+}
+
+elNombre.addEventListener("click", empezarARenombrar);
+campoNombre.addEventListener("blur", () => terminarDeRenombrar(true));
+campoNombre.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    terminarDeRenombrar(true);
+    vista.focus();
+  } else if (e.key === "Escape") {
+    e.preventDefault();
+    terminarDeRenombrar(false);
+    vista.focus();
+  }
+});
+
+/**
  * Guarda la sesión en el navegador.
  *
  * No reemplaza al archivo en disco: es una red de seguridad para que recargar
@@ -1276,7 +1329,9 @@ document.querySelector("#btn-limpiar")!.addEventListener("click", () => {
   consola.textContent = "";
   refrescarCabeceraArchivo();
   recordarSesion();
-  vista.focus();
+  // Un programa nuevo empieza por ponerle nombre: se abre el campo en vez de
+  // dejar "programa.psc" y que haya que descubrir dónde se cambia.
+  empezarARenombrar();
 });
 
 if (sesionPrevia !== null) {

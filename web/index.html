@@ -93,6 +93,8 @@
   /* Identidad del archivo: lo primero que se lee, y lo único alineado a la
      izquierda. El resto de la barra empuja hacia la derecha. */
   #identidad { display: flex; align-items: center; gap: 8px; margin-right: auto; }
+  /* Es un botón, no un texto: cambiarle el nombre al programa tiene que ser
+     evidente. Estaba solo en "Guardar como…", donde nadie lo buscaba. */
   #nombre-archivo {
     font-family: var(--mono);
     font-size: 13px;
@@ -101,6 +103,27 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    display: block;
+    padding: 3px 7px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: none;
+    color: var(--texto);
+    cursor: text;
+  }
+  #nombre-archivo:hover { border-color: var(--borde); background: var(--fondo); }
+
+  #campo-nombre {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    width: 220px;
+    padding: 3px 7px;
+    border: 1px solid var(--sx-funcion);
+    border-radius: 6px;
+    background: var(--fondo);
+    color: var(--texto);
+    outline: none;
   }
   #marca-sucio { color: var(--aviso); font-size: 14px; line-height: 1; margin-left: -4px; }
 
@@ -1085,7 +1108,8 @@
 
 <header>
   <div id="identidad">
-    <span id="nombre-archivo" title="Archivo abierto">programa.psc</span>
+    <button type="button" id="nombre-archivo" title="Hacé clic para cambiarle el nombre">programa.psc</button>
+    <input id="campo-nombre" hidden aria-label="Nombre del programa" autocomplete="off">
     <span id="marca-sucio" hidden title="Hay cambios sin guardar">●</span>
     <span id="estado" class="estado">…</span>
   </div>

@@ -73,10 +73,12 @@ Dentro de un texto se reconocen las secuencias de escape `\"`, `\\` y `\n`.
 ### 2.4 Comentarios
 
 ```ebnf
-comentario = "//" , { caracter - fin_de_linea } ;
+comentario       = comentario_linea | comentario_bloque ;
+comentario_linea = "//" , { caracter - fin_de_linea } ;
+comentario_bloque = "/*" , { caracter } , "*/" ;
 ```
 
-Solo comentarios de línea. No hay comentarios de bloque.
+Los de bloque no anidan: el primer `*/` cierra. Si anidaran, comentar un fragmento que ya tuviera un comentario adentro funcionaría a veces sí y a veces no según dónde cayera el cierre, que es peor que no poder anidar. Un bloque sin cerrar es error, y se señala dónde **empezó**: es el dato que sirve para encontrarlo.
 
 ### 2.5 Espacios y saltos de línea
 

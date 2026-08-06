@@ -7,7 +7,7 @@
  * Lo que sí comparten es la tabla `PALABRAS_CLAVE`, que es la única parte que
  * de verdad tiene que mantenerse sincronizada.
  */
-import { StreamLanguage, LanguageSupport, HighlightStyle, syntaxHighlighting, indentService } from "@codemirror/language";
+import { StreamLanguage, LanguageSupport, HighlightStyle, syntaxHighlighting, indentService, type StringStream } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { PALABRAS_CLAVE } from "../src/token.ts";
 import { ANCHO_SANGRIA, nivelSiguiente } from "./formato.ts";
@@ -24,15 +24,50 @@ const TIPOS = new Set(["Entero", "Real", "Texto", "Caracter", "Logico", "Arreglo
 const LOGICOS = new Set(["Verdadero", "Falso"]);
 const OPERADORES_PALABRA = new Set(["Y", "O", "No", "DIV", "MOD"]);
 
-const seudocodigo = StreamLanguage.define({
+/**
+ * Estado del resaltador entre líneas.
+ *
+ * Hace falta solo por los comentarios de bloque: son lo único del lenguaje que
+ * atraviesa el salto de línea, así que sin recordar "vengo de adentro de un
+ * comentario" la segunda línea se resaltaría como código.
+ */
+interface EstadoResaltado {
+  enComentario: boolean;
+}
+
+/** Consume hasta cerrar el comentario. Devuelve si quedó abierto al terminar la línea. */
+function comerComentario(stream: StringStream): boolean {
+  while (!stream.eol()) {
+    if (stream.match("*/")) return false;
+    stream.next();
+  }
+  return true;
+}
+
+const seudocodigo = StreamLanguage.define<EstadoResaltado>({
   name: "seudocodigo",
 
-  token(stream) {
+  startState: () => ({ enComentario: false }),
+
+  token(stream, estado) {
+    // Adentro de un comentario de bloque no se mira nada más: ni palabras clave
+    // ni comillas. Un `"` dentro del comentario no abre un texto.
+    if (estado.enComentario) {
+      estado.enComentario = comerComentario(stream);
+      return "comment";
+    }
+
     if (stream.eatSpace()) return null;
 
-    // Comentario
+    // Comentario de línea
     if (stream.match("//")) {
       stream.skipToEnd();
+      return "comment";
+    }
+
+    // Comentario de bloque
+    if (stream.match("/*")) {
+      estado.enComentario = comerComentario(stream);
       return "comment";
     }
 

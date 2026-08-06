@@ -401,3 +401,56 @@ Fin`;
     assert.equal(tokens.filter((t) => t.tipo === "FIN_LINEA").length, 9);
   });
 });
+
+describe("comentarios de bloque", () => {
+  test("abarcan varias líneas y no dejan tokens", () => {
+    const { tokens, errores } = tokenizar("/* una\n   dos\n   tres */\nInicio\nFin\n");
+    assert.deepEqual(errores, []);
+    assert.deepEqual(
+      tokens.filter((t) => t.tipo !== "FIN_LINEA" && t.tipo !== "EOF").map((t) => t.lexema),
+      ["Inicio", "Fin"],
+    );
+  });
+
+  test("las líneas que ocupa se siguen contando", () => {
+    // Si no se contaran, todo error posterior apuntaría a la línea equivocada,
+    // que es peor que no tener el comentario.
+    const { tokens } = tokenizar("/* uno\ndos\ntres */\nInicio\n");
+    const inicio = tokens.find((t) => t.lexema === "Inicio");
+    assert.equal(inicio?.linea, 4);
+  });
+
+  test("puede ir en medio de una línea", () => {
+    const { tokens, errores } = tokenizar("Definir a /* medida */ Como Entero\n");
+    assert.deepEqual(errores, []);
+    assert.deepEqual(
+      tokens.filter((t) => t.tipo !== "FIN_LINEA" && t.tipo !== "EOF").map((t) => t.lexema),
+      ["Definir", "a", "Como", "Entero"],
+    );
+  });
+
+  test("sin cerrar avisa dónde empezó", () => {
+    const { errores } = tokenizar("Inicio\n    /* me olvidé\n    Escribir 1\nFin\n");
+    assert.equal(errores.length, 1);
+    assert.equal(errores[0]!.linea, 2, "señala la apertura, no el final del archivo");
+    assert.match(errores[0]!.mensaje, /nunca se cierra/);
+  });
+
+  test("no se interpreta dentro de un texto", () => {
+    const { tokens, errores } = tokenizar('Escribir "no /* es */ comentario"\n');
+    assert.deepEqual(errores, []);
+    assert.equal(tokens[1]!.lexema, '"no /* es */ comentario"');
+  });
+
+  test("no anidan: cierra el primer */", () => {
+    // El '*/' del medio cierra, así que 'Inicio' queda fuera del comentario.
+    const { tokens, errores } = tokenizar("/* a /* b */ Inicio\nFin\n");
+    assert.deepEqual(errores, []);
+    assert.equal(tokens[0]!.lexema, "Inicio");
+  });
+
+  test("una división no se confunde con una apertura", () => {
+    const { errores } = tokenizar("a <- b / c\n");
+    assert.deepEqual(errores, []);
+  });
+});

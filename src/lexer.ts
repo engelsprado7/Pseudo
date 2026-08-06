@@ -83,6 +83,35 @@ export function tokenizar(fuente: string): ResultadoLexico {
       continue;
     }
 
+    // --- comentario de bloque ---
+    //
+    // No anidan, como en casi todos los lenguajes: el primer `*/` cierra. Si
+    // anidaran, comentar un fragmento que ya tuviera un comentario adentro
+    // funcionaría a veces sí y a veces no, según dónde cayera el cierre.
+    if (c === "/" && siguiente() === "*") {
+      const apertura = inicio;
+      avanzar();
+      avanzar();
+      let cerrado = false;
+      while (!fin()) {
+        if (actual() === "*" && siguiente() === "/") {
+          avanzar();
+          avanzar();
+          cerrado = true;
+          break;
+        }
+        // `avanzar` lleva la cuenta de líneas y columnas, así que un comentario
+        // de varias líneas no descoloca las posiciones que se reportan después.
+        avanzar();
+      }
+      if (!cerrado) {
+        errores.push(
+          error(apertura, 2, "este comentario nunca se cierra.", "Agregá '*/' donde termine."),
+        );
+      }
+      continue;
+    }
+
     // --- salto de línea ---
     if (c === "\n") {
       avanzar();

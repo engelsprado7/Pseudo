@@ -3,7 +3,7 @@
 Lenguaje de seudocódigo en español para enseñar programación. La sintaxis y la
 semántica están definidas en `especificacion-lenguaje.md`.
 
-Estado: **completo y funcionando.** 550 pruebas. El editor web ejecuta programas,
+Estado: **completo y funcionando.** 559 pruebas. El editor web ejecuta programas,
 resalta sintaxis, subraya en vivo los errores de sintaxis y de tipos, formatea, y
 **verifica soluciones contra ejercicios automáticamente**.
 
@@ -45,7 +45,7 @@ detecta, porque es sintaxis válida de TypeScript; lo vigila
 ## Uso
 
 ```bash
-npm test                                    # 550 pruebas
+npm test                                    # 559 pruebas
 npm run tipos                               # chequeo de tipos (tsc)
 npm run build                               # genera sitio/
 npm run dev                                 # build + servidor en :8000
@@ -87,7 +87,21 @@ Inicio
 Fin
 ```
 
-Los comentarios empiezan con `//` y llegan hasta el final de la línea.
+Un comentario de una línea empieza con `//`. Para varias líneas seguidas, `/* ... */`.
+
+```pseudo
+/* Calcula el área de un rectángulo.
+   Autor: Ana
+   Fecha: marzo */
+Inicio
+    Definir base, altura Como Real
+    base <- 5
+    altura <- 3      // las medidas van en metros
+    Escribir "Área: ", base * altura
+Fin
+```
+
+Los de bloque no anidan: el primer `*/` cierra el comentario.
 
 ### Variables y tipos
 
