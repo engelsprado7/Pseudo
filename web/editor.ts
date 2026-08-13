@@ -440,7 +440,11 @@ function resaltarLineaPaso(linea: number | null): void {
 const vista = new EditorView({
   parent: contenedor,
   state: EditorState.create({
-    doc: sesionPrevia?.contenido ?? EJEMPLO,
+    // Quien llega por primera vez encuentra una hoja en blanco, no el ejemplo
+    // grande: como primera pantalla, treinta líneas con funciones y arreglos
+    // intimidan a alguien que nunca programó. El ejemplo sigue disponible en el
+    // menú, para cuando se lo quiera mirar a propósito.
+    doc: sesionPrevia?.contenido ?? ESQUELETO,
     extensions: [
       lineNumbers(),
       highlightActiveLine(),
@@ -1338,8 +1342,8 @@ if (sesionPrevia !== null) {
   nombreArchivo = sesionPrevia.nombre;
   referenciaGuardada = sesionPrevia.referencia;
 } else {
-  // Primera visita: el ejemplo no cuenta como trabajo sin guardar.
-  referenciaGuardada = EJEMPLO;
+  // Primera visita: la hoja vacía no cuenta como trabajo sin guardar.
+  referenciaGuardada = ESQUELETO;
 }
 refrescarCabeceraArchivo();
 actualizarEstado(vista.state.doc.toString());
