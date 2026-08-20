@@ -12,6 +12,7 @@
 import { hayNube, leerConfig } from "./nube.ts";
 import { icono } from "./iconos.ts";
 import { notificar } from "./avisos.ts";
+import { conExtension, descargar } from "./archivos.ts";
 import { abrirEditorDeEjercicio, type EjercicioAEditar } from "./editor-ejercicio.ts";
 import { crearPanelDeClase } from "./clase.ts";
 import { claseDeApertura, comoAbrir } from "../src/apertura.ts";
@@ -397,6 +398,16 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
               abiertas ? "bajar" : "publicar",
             ),
           );
+          if (propios.length > 0) {
+            nota.appendChild(
+              accion(
+                "Descargar todo",
+                "Bajar la entrega de cada alumno como archivo",
+                () => void descargarEntregas(propios),
+                "guardar",
+              ),
+            );
+          }
         } else {
           nota.textContent = abiertas
             ? "Podés ver las entregas de tus compañeros."
@@ -702,6 +713,17 @@ export async function iniciarNubeUI(enlace: Enlace): Promise<ControlesNube> {
     if (enlace.cargarCodigo(r.dato.codigo, item.titulo)) dialogo.close();
   }
 
+  /** Descarga cada entrega como un archivo .psc, nombrado "alumno - título". */
+  async function descargarEntregas(items: ItemFeed[]): Promise<void> {
+    for (const item of items) {
+      const r = await traerPrograma(item.id);
+      if (!r.ok) {
+        avisar(`No se pudo descargar "${item.titulo}" de ${item.autor}: ${r.mensaje}`, "error");
+        continue;
+      }
+      descargar(conExtension(`${item.autor} - ${item.titulo}`), r.dato.codigo);
+    }
+  }
 
   // --- Eventos ---
 

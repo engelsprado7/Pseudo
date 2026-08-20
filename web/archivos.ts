@@ -137,7 +137,7 @@ export type ResultadoGuardado =
   | { estado: "cancelado" };
 
 /** Descarga el contenido como archivo. Es el respaldo universal. */
-function descargar(nombre: string, contenido: string): void {
+export function descargar(nombre: string, contenido: string): void {
   const blob = new Blob([contenido], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");
