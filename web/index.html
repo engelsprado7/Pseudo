@@ -300,6 +300,10 @@
   }
   @media (max-width: 820px) {
     main { grid-template-columns: 1fr; grid-template-rows: 1fr 220px; }
+    /* Colapsada, el renglón de la salida se achica al alto de su manija: es lo
+       que le devuelve al editor el espacio que antes se le iba en una pantalla
+       chica. */
+    main.panel-colapsado { grid-template-rows: 1fr auto; }
   }
 
   #envoltorio-editor { border-right: 1px solid var(--borde); }
@@ -320,6 +324,43 @@
     overflow: hidden;
   }
   #panel-problemas { border-top: 1px solid var(--borde); }
+
+  /* La manija solo hace falta donde la salida compite por espacio con el
+     editor: en pantallas angostas. En una pantalla ancha, aside ya tiene su
+     columna propia y esconderla no libera nada. */
+  #manija-panel { display: none; }
+  #btn-alternar-panel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 14px;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--tenue);
+    cursor: pointer;
+  }
+  #btn-alternar-panel:hover { color: var(--texto); }
+  #btn-alternar-panel svg { transition: transform .15s; flex-shrink: 0; }
+  #btn-alternar-panel .cuenta { color: var(--err); text-transform: none; letter-spacing: normal; }
+
+  /* Todo lo que depende de .colapsado vive acá adentro: son las clases por
+     defecto del HTML (ver el comentario junto a <main>), así que fuera de esta
+     pantalla angosta tienen que quedar sin efecto — si no, esconderían la
+     salida también en el escritorio. */
+  @media (max-width: 820px) {
+    #manija-panel { display: block; border-bottom: 1px solid var(--borde); }
+    /* Abierta, la flecha apunta para arriba (hacia el contenido que se puede
+       volver a esconder); colapsada, para abajo (hacia lo que aparece si se
+       toca). */
+    aside:not(.colapsado) #btn-alternar-panel svg { transform: rotate(180deg); }
+    aside.colapsado section { display: none; }
+  }
 
   #consola {
     flex: 1;
@@ -1214,12 +1255,18 @@
   </div>
 </header>
 
-<main>
+<!-- panel-colapsado / colapsado: arrancan colapsados porque solo importan en
+     una pantalla angosta (ver @media en el CSS) — en una pantalla ancha, aside
+     ya tiene su propia columna y estas clases no cambian nada. -->
+<main class="panel-colapsado">
   <div id="envoltorio-editor">
     <div id="editor"></div>
     <div id="zona-soltar">Soltá el archivo .psc para abrirlo</div>
   </div>
-  <aside>
+  <aside class="colapsado">
+    <div id="manija-panel">
+      <button type="button" id="btn-alternar-panel" aria-expanded="false" title="Mostrar la salida y los problemas">Salida</button>
+    </div>
     <section id="panel-consola">
       <h2>Salida</h2>
       <pre id="consola" aria-live="polite"></pre>

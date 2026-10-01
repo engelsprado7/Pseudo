@@ -530,6 +530,49 @@ const vista = new EditorView({
 });
 
 // ------------------------------------------------------------------
+// Panel de salida y problemas (colapsable en pantallas angostas)
+// ------------------------------------------------------------------
+
+const mainElemento = document.querySelector<HTMLElement>("main")!;
+const asideElemento = document.querySelector<HTMLElement>("aside")!;
+const btnAlternarPanel = document.querySelector<HTMLButtonElement>("#btn-alternar-panel")!;
+
+/**
+ * Agrega o saca el contador rojo de un botón o pestaña.
+ *
+ * Lo usan tanto la pestaña «Problemas» como la manija del panel: un mismo
+ * número, mostrado en dos lugares, para que el conteo de errores siga visible
+ * aunque el panel esté colapsado.
+ */
+function ponerCuenta(el: HTMLElement, n: number): void {
+  el.querySelector(".cuenta")?.remove();
+  if (n > 0) {
+    const cuenta = document.createElement("span");
+    cuenta.className = "cuenta";
+    cuenta.textContent = ` ${n}`;
+    el.appendChild(cuenta);
+  }
+}
+
+/**
+ * Colapsar el panel es solo relevante en una pantalla angosta (ver el
+ * `@media` del CSS); en una pantalla ancha las clases quedan puestas pero no
+ * cambian nada, así que no hace falta distinguir el caso acá.
+ */
+function fijarPanelColapsado(colapsado: boolean): void {
+  asideElemento.classList.toggle("colapsado", colapsado);
+  mainElemento.classList.toggle("panel-colapsado", colapsado);
+  btnAlternarPanel.setAttribute("aria-expanded", String(!colapsado));
+  btnAlternarPanel.title = colapsado
+    ? "Mostrar la salida y los problemas"
+    : "Ocultar la salida y los problemas";
+}
+
+btnAlternarPanel.addEventListener("click", () => {
+  fijarPanelColapsado(!asideElemento.classList.contains("colapsado"));
+});
+
+// ------------------------------------------------------------------
 // Ejecución
 // ------------------------------------------------------------------
 
@@ -616,6 +659,7 @@ function terminarEjecucion(): void {
 
 async function ejecutarPrograma(): Promise<void> {
   if (corriendo !== null || visualizador !== null) return;
+  fijarPanelColapsado(false);
 
   const fuente = vista.state.doc.toString();
   const compilado = compilar(fuente);
@@ -774,6 +818,7 @@ function detenerVisualizacion(): void {
 
 async function iniciarVisualizacion(): Promise<void> {
   if (corriendo !== null || visualizador !== null) return;
+  fijarPanelColapsado(false);
 
   const compilado = compilar(vista.state.doc.toString());
   consola.textContent = "";
@@ -892,6 +937,7 @@ function ajustarPanelInferior(): void {
   const errores = analizar(vista.state.doc.toString()).filter(
     (d) => d.severidad === "error",
   ).length;
+  ponerCuenta(btnAlternarPanel, errores);
 
   // Sin ejercicio abierto no hay nada que elegir: el panel son los problemas.
   if (ejercicioActual === null) {
@@ -914,12 +960,7 @@ function ajustarPanelInferior(): void {
 
   // El contador es lo que evita que esconder la lista se sienta como perderla.
   pestanaProblemas.textContent = "Problemas";
-  if (errores > 0) {
-    const cuenta = document.createElement("span");
-    cuenta.className = "cuenta";
-    cuenta.textContent = ` ${errores}`;
-    pestanaProblemas.appendChild(cuenta);
-  }
+  ponerCuenta(pestanaProblemas, errores);
 }
 
 function mirarPestana(cual: "enunciado" | "problemas"): void {
@@ -934,6 +975,7 @@ function claseDeCaso(caso: ResultadoCaso): string {
 
 function verificar(): void {
   if (ejercicioActual === null || visualizador !== null || corriendo !== null) return;
+  fijarPanelColapsado(false);
 
   const compilado = compilar(vista.state.doc.toString());
 
@@ -1347,6 +1389,7 @@ if (sesionPrevia !== null) {
 }
 refrescarCabeceraArchivo();
 actualizarEstado(vista.state.doc.toString());
+ajustarPanelInferior();
 
 // ------------------------------------------------------------------
 // Diagrama de flujo
@@ -1442,6 +1485,7 @@ for (const [selector, nombre] of [
   ["#btn-cerrar-diagrama", "cerrar"],
   ["#btn-bajar-diagrama", "bajar"],
   ["#menu-archivo > summary", "opciones"],
+  ["#btn-alternar-panel", "desplegar"],
 ] as const) {
   const el = document.querySelector<HTMLElement>(selector);
   if (el === null) continue;

@@ -37,6 +37,7 @@ const TRAZOS: Record<string, string> = {
   ejemplo: '<path d="M4 19.5V5a2 2 0 0 1 2-2h13v18H6a2 2 0 0 1-2-1.5Z"/><path d="M8 7h7"/><path d="M8 11h7"/>',
   diagrama: '<rect x="8" y="2" width="8" height="6" rx="1"/><rect x="2" y="16" width="8" height="6" rx="1"/><rect x="14" y="16" width="8" height="6" rx="1"/><path d="M12 8v4"/><path d="M6 16v-4h12v4"/>',
   opciones: '<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
+  desplegar: '<path d="m6 9 6 6 6-6"/>',
 };
 
 export type NombreIcono = keyof typeof TRAZOS | string;
