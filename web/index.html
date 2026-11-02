@@ -451,6 +451,20 @@
   .diag.advertencia { border-left-color: var(--aviso); }
   .diag-cabecera { font-weight: 500; }
   .diag-sugerencia { color: var(--tenue); margin-top: 4px; }
+  /* El error por el que conviene empezar: más grande y con fondo propio. */
+  .diag.principal {
+    padding: 12px 14px;
+    background: color-mix(in srgb, var(--err) 8%, var(--panel));
+    font-size: 14px;
+  }
+  .diag-resto > summary {
+    padding: 6px 2px;
+    font-size: 13px;
+    color: var(--tenue);
+    cursor: pointer;
+  }
+  .diag-resto > summary:hover { color: var(--texto); }
+  .diag-resto > .vacio { margin: 2px 0 8px; }
 
   #enunciado {
     padding: 0 14px 14px;

@@ -155,6 +155,9 @@ const contenedor = document.querySelector<HTMLElement>("#editor")!;
 const panelEstado = document.querySelector<HTMLElement>("#estado")!;
 const salida = document.querySelector<HTMLElement>("#salida")!;
 
+/** Si el alumno desplegó los problemas que siguen al primero. */
+let restoAbierto = false;
+
 function actualizarEstado(fuente: string): void {
   const diags = analizar(fuente);
   const errores = diags.filter((d) => d.severidad === "error");
@@ -192,29 +195,59 @@ function actualizarEstado(fuente: string): void {
     return;
   }
 
-  for (const d of diags) {
-    const item = document.createElement("div");
-    item.className = `diag ${d.severidad}`;
-    const cabecera = document.createElement("div");
-    cabecera.className = "diag-cabecera";
-    cabecera.textContent = `Línea ${d.linea}: ${d.mensaje}`;
-    item.appendChild(cabecera);
-    if (d.sugerencia !== undefined) {
-      const sug = document.createElement("div");
-      sug.className = "diag-sugerencia";
-      sug.textContent = d.sugerencia;
-      item.appendChild(sug);
-    }
-    item.addEventListener("click", () => {
-      const linea = vista.state.doc.line(Math.min(d.linea, vista.state.doc.lines));
-      vista.dispatch({
-        selection: { anchor: linea.from + Math.max(0, d.columna - 1) },
-        scrollIntoView: true,
-      });
-      vista.focus();
-    });
-    salida.appendChild(item);
+  // Un error arriba suele arrastrar a los de abajo: escribir "Algoritmo" en vez
+  // de "Inicio" da ocho errores iguales y el alumno no sabe por dónde empezar.
+  // El primer error va destacado y el resto queda plegado debajo.
+  const principal = diags.find((d) => d.severidad === "error");
+  if (principal === undefined || diags.length === 1) {
+    for (const d of diags) salida.appendChild(itemDiagnostico(d));
+    return;
   }
+  const destacado = itemDiagnostico(principal);
+  destacado.classList.add("principal");
+  salida.appendChild(destacado);
+
+  const resto = diags.filter((d) => d !== principal);
+  const plegado = document.createElement("details");
+  plegado.className = "diag-resto";
+  // El panel se rehace con cada tecla: sin esto, se volvería a plegar mientras
+  // el alumno corrige.
+  plegado.open = restoAbierto;
+  plegado.addEventListener("toggle", () => (restoAbierto = plegado.open));
+  const resumen = document.createElement("summary");
+  resumen.textContent =
+    resto.length === 1 ? "1 problema más" : `${resto.length} problemas más`;
+  plegado.appendChild(resumen);
+  const nota = document.createElement("p");
+  nota.className = "vacio";
+  nota.textContent = "Suelen ser consecuencia del primero: corregilo y volvé a mirar.";
+  plegado.appendChild(nota);
+  for (const d of resto) plegado.appendChild(itemDiagnostico(d));
+  salida.appendChild(plegado);
+}
+
+function itemDiagnostico(d: ReturnType<typeof analizar>[number]): HTMLElement {
+  const item = document.createElement("div");
+  item.className = `diag ${d.severidad}`;
+  const cabecera = document.createElement("div");
+  cabecera.className = "diag-cabecera";
+  cabecera.textContent = `Línea ${d.linea}: ${d.mensaje}`;
+  item.appendChild(cabecera);
+  if (d.sugerencia !== undefined) {
+    const sug = document.createElement("div");
+    sug.className = "diag-sugerencia";
+    sug.textContent = d.sugerencia;
+    item.appendChild(sug);
+  }
+  item.addEventListener("click", () => {
+    const linea = vista.state.doc.line(Math.min(d.linea, vista.state.doc.lines));
+    vista.dispatch({
+      selection: { anchor: linea.from + Math.max(0, d.columna - 1) },
+      scrollIntoView: true,
+    });
+    vista.focus();
+  });
+  return item;
 }
 
 // ------------------------------------------------------------------
