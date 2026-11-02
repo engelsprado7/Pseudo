@@ -91,24 +91,26 @@ describe("en el navegador", () => {
     await esperarTexto(p, "#consola", "42");
   });
 
-  test("un programa al estilo PSeInt: primer error destacado y arreglo de un clic", async () => {
+  test("un programa al estilo PSeInt: un solo error y arreglo de un clic", async () => {
     const p = await abrir();
     await escribir(
       p,
       "Algoritmo suma\n    Definir a Como Entero\n    Leer a\n    Escribir a\nFinAlgoritmo",
     );
-    await esperarTexto(p, ".diag.principal", "es de PSeInt");
-    // El resto queda plegado debajo, no seis tarjetas iguales.
-    assert.equal(await p.locator("details.diag-resto").count(), 1);
+    await esperarTexto(p, ".diag", "es de PSeInt");
+    // Un solo error, no uno por cada línea que quedó fuera de 'Inicio … Fin'.
+    assert.equal(await p.locator(".diag.error").count(), 1);
 
     await p.click(".diag-arreglo");
     await esperarTexto(p, "#estado", /Sin errores|advertencia/);
     assert.match(await programa(p), /^Inicio\n[\s\S]*\nFin$/);
   });
 
-  test("la lista de problemas desplegada no se pliega al seguir escribiendo", async () => {
+  test("varios errores: el primero destacado y el resto plegado, que no se pliega solo", async () => {
     const p = await abrir();
-    await escribir(p, "Algoritmo x\n    Leer a\n    Leer b\nFinAlgoritmo");
+    await escribir(p, "Inicio\n    Escribir a\n    Escribir b\n    Escribir c\nFin");
+    await esperarTexto(p, ".diag.principal", "'a' no está declarada");
+    await esperarTexto(p, "details.diag-resto > summary", "2 problemas más");
     await p.click("details.diag-resto > summary");
     await p.locator(".cm-content").click();
     await p.keyboard.press("ControlOrMeta+End");
