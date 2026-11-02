@@ -358,6 +358,7 @@ class Parser {
     const subprogramas: Subprograma[] = [];
     let principal: Sentencia[] = [];
     let posInicio: Posicion | null = null;
+    let codigoSuelto = false;
 
     this.saltarLineas();
 
@@ -380,14 +381,17 @@ class Parser {
           this.abrirBloque(inicio, "Fin");
           principal = this.parsearBloque("Fin");
           this.cerrarBloque();
-        } else if (esAperturaPSeInt(this.actual())) {
-          this.errores.push(errorPSeInt(this.actual(), this.tokens));
-          throw new ErrorSintactico();
         } else {
-          this.fallar(
-            `no esperaba ${describir(this.actual())} en el nivel principal del programa.`,
-            "Fuera de 'Inicio ... Fin' solo pueden ir funciones y procedimientos.",
+          // Código suelto fuera de 'Inicio … Fin'. Un error por tramo y no uno
+          // por línea: el alumno que olvidó 'Inicio' tiene un solo problema, y
+          // diez mensajes iguales lo esconden en vez de explicarlo.
+          this.errores.push(
+            esAperturaPSeInt(this.actual())
+              ? errorPSeInt(this.actual(), this.tokens)
+              : this.errorCodigoSuelto(posInicio !== null),
           );
+          codigoSuelto = true;
+          this.saltarHastaNivelPrincipal();
         }
       } catch (e) {
         if (!(e instanceof ErrorSintactico)) throw e;
@@ -400,7 +404,8 @@ class Parser {
       this.saltarLineas();
     }
 
-    if (posInicio === null) {
+    // Si hubo código suelto, su error ya dijo que falta 'Inicio'.
+    if (posInicio === null && !codigoSuelto) {
       const ultimo = this.tokens[this.tokens.length - 1]!;
       this.reportar(
         "el programa no tiene bloque 'Inicio'.",
@@ -414,6 +419,36 @@ class Parser {
       programa: { subprogramas, principal, posInicio },
       errores: this.errores,
     };
+  }
+
+  /** El mensaje depende de dónde quedó el código respecto de 'Inicio … Fin'. */
+  private errorCodigoSuelto(despuesDeFin: boolean): Diagnostico {
+    const t = this.actual();
+    const pos = { linea: t.linea, columna: t.columna };
+    const largo = Math.max(1, t.lexema.length);
+    if (despuesDeFin) {
+      return error(pos, largo,
+        "hay código después del 'Fin' del programa.",
+        "Lo que va después de 'Fin' no se ejecuta: movelo antes de 'Fin'.");
+    }
+    if (this.tokens.slice(this.k).some((x) => x.tipo === "Inicio")) {
+      return error(pos, largo,
+        "este código está antes de 'Inicio' y queda fuera del programa.",
+        "Fuera de 'Inicio … Fin' solo pueden ir funciones y procedimientos.");
+    }
+    return error(pos, largo,
+      "falta 'Inicio': las sentencias del programa van entre 'Inicio' y 'Fin'.",
+      "Agregá 'Inicio' en la primera línea y 'Fin' en la última.");
+  }
+
+  /** Salta el tramo suelto hasta la próxima línea que empieza algo válido. */
+  private saltarHastaNivelPrincipal(): void {
+    do {
+      this.avanzar();
+    } while (
+      !this.enEOF() &&
+      !(this.anterior().tipo === "FIN_LINEA" && this.ver("Inicio", "Funcion", "Procedimiento"))
+    );
   }
 
   // ------------------------------------------------------------------

@@ -72,7 +72,12 @@ describe("estructura del programa", () => {
 
   test("sin 'Inicio' se reporta", () => {
     const e = errores("Escribir 1");
-    assert.ok(e.some((d) => /no tiene bloque 'Inicio'/.test(d.mensaje)));
+    assert.equal(e.length, 1);
+    assert.match(e[0]!.mensaje, /falta 'Inicio'/);
+  });
+
+  test("un programa vacío dice que falta 'Inicio'", () => {
+    assert.match(errores("// nada todavía")[0]!.mensaje, /no tiene bloque 'Inicio'/);
   });
 
   test("subprogramas antes y después del bloque principal", () => {
@@ -694,5 +699,48 @@ describe("programa escrito al estilo PSeInt", () => {
 
   test("también 'Proceso', sin nombre y en cualquier combinación de mayúsculas", () => {
     assert.equal(arreglar("proceso\n  Escribir 1\nFINPROCESO"), "Inicio\n  Escribir 1\nFin");
+  });
+});
+
+describe("código fuera de 'Inicio … Fin': un error por tramo, no uno por línea", () => {
+  function mensajes(fuente: string): string[] {
+    return analizar(fuente).errores.map((e) => `L${e.linea}: ${e.mensaje}`);
+  }
+
+  test("sin 'Inicio' ni 'Fin'", () => {
+    const m = mensajes("Definir a Como Entero\nLeer a\nEscribir a");
+    assert.equal(m.length, 1, m.join("\n"));
+    assert.match(m[0]!, /^L1: falta 'Inicio'/);
+  });
+
+  test("sin 'Inicio' pero con 'Fin'", () => {
+    const m = mensajes("Definir a Como Entero\nLeer a\nFin");
+    assert.equal(m.length, 1, m.join("\n"));
+  });
+
+  test("al estilo PSeInt, solo el error que trae el arreglo", () => {
+    const m = mensajes("Algoritmo x\n  Definir a Como Entero\n  Leer a\nFinAlgoritmo");
+    assert.equal(m.length, 1, m.join("\n"));
+    assert.match(m[0]!, /es de PSeInt/);
+  });
+
+  test("código después de 'Fin'", () => {
+    const m = mensajes("Inicio\n  Escribir 1\nFin\nEscribir 2\nEscribir 3");
+    assert.deepEqual(m, ["L4: hay código después del 'Fin' del programa."]);
+  });
+
+  test("código antes de 'Inicio': un error y el programa se sigue analizando", () => {
+    const { programa, errores } = analizar("Escribir 0\nInicio\n  Escribir 1\nFin");
+    assert.equal(errores.length, 1);
+    assert.match(errores[0]!.mensaje, /antes de 'Inicio'/);
+    assert.equal(programa.principal.length, 1);
+  });
+
+  test("después del tramo suelto se reconocen funciones y procedimientos", () => {
+    const { programa, errores } = analizar(
+      "Escribir 0\nEscribir 1\nProcedimiento P()\n  Escribir 2\nFinProcedimiento\nInicio\n  P()\nFin",
+    );
+    assert.equal(errores.length, 1);
+    assert.equal(programa.subprogramas.length, 1);
   });
 });
