@@ -1,7 +1,12 @@
 -- Esquema de la capa en la nube (salas por clase).
 --
--- Pegar entero en el SQL Editor de Supabase y ejecutar. Es idempotente en lo
--- que importa: se puede volver a correr sin romper nada.
+-- Primera migración: es la base tal como estaba en producción el 2026-11-02,
+-- comparada tabla por tabla, política por política y función por función. Los
+-- 'arreglo-*.sql' que se pegaban a mano ya están todos acá adentro.
+--
+-- Cada cambio de ahora en más va en una migración nueva en esta carpeta, con
+-- fecha en el nombre, y nunca se edita una que ya se aplicó. Es idempotente:
+-- se puede volver a correr sin romper nada.
 --
 -- La regla que sostiene todo: la clave publishable es pública, así que la
 -- seguridad vive acá, en RLS. Toda tabla tiene RLS activo y políticas
@@ -116,7 +121,7 @@ create table if not exists ejercicios (
 );
 
 -- A qué ejercicio responde una entrega. Nula para código suelto, que no responde
--- a ninguno; ahí la unicidad es por sala y autor.
+-- a ninguno; el suelto no se deduplica: son programas distintos.
 --
 -- Va como 'alter' y no dentro del 'create table' porque 'programas' se define
 -- antes que 'ejercicios': en un despliegue desde cero, la referencia apuntaría a
@@ -130,10 +135,11 @@ create index if not exists ejercicios_por_sala on ejercicios (sala, creado desc)
 -- Una persona, una entrega por ejercicio. Va en un índice y no solo dentro de
 -- 'compartir_solucion' porque la política de INSERT permite escribir directo por
 -- la API: una regla que vive solo en la función se saltea llamando al endpoint.
--- El 'coalesce' es porque en un índice único los NULL se consideran distintos
--- entre sí, y el código suelto volvería a poder duplicarse.
+-- Parcial: el código suelto (sin ejercicio) no se deduplica, son programas
+-- distintos y unificarlos borraba el anterior al entregar el siguiente.
 create unique index if not exists programas_una_entrega
-  on programas (sala, autor, coalesce(ejercicio, ''));
+  on programas (sala, autor, ejercicio)
+  where ejercicio is not null;
 
 -- ------------------------------------------------------------------
 -- RLS
@@ -413,6 +419,46 @@ begin
     raise exception 'Solo un docente de la sala puede cambiar esto.';
   end if;
   update salas set entregas_visibles = p_visibles where id = p_sala;
+end $$;
+
+-- Entregar: una entrega por ejercicio, que se reemplaza al volver a entregar.
+-- El código suelto, sin ejercicio, siempre inserta.
+create or replace function compartir_solucion(
+  p_sala uuid,
+  p_ejercicio text,
+  p_titulo text,
+  p_codigo text
+)
+returns text
+language plpgsql security definer set search_path = public as $$
+declare
+  v_id text;
+begin
+  if not es_miembro(p_sala) then
+    raise exception 'No sos miembro de esa sala.';
+  end if;
+
+  -- Una entrega por ejercicio: volver a entregarla la reemplaza. El código
+  -- suelto no tiene ejercicio y no se toca acá, así que siempre inserta: son
+  -- programas distintos y unificarlos borraba el anterior.
+  if p_ejercicio is not null then
+    update programas
+       set titulo = p_titulo,
+           codigo = p_codigo,
+           creado = now()
+     where sala = p_sala
+       and autor = auth.uid()
+       and ejercicio = p_ejercicio
+    returning id into v_id;
+  end if;
+
+  if v_id is null then
+    insert into programas (sala, autor, ejercicio, titulo, codigo)
+    values (p_sala, auth.uid(), p_ejercicio, p_titulo, p_codigo)
+    returning id into v_id;
+  end if;
+
+  return v_id;
 end $$;
 
 -- ------------------------------------------------------------------
