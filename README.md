@@ -67,6 +67,11 @@ comprobarlo contra uno viejo.
 CodeMirror, que las pruebas no pueden comprobar sin un navegador. También detecta
 errores reales que las pruebas no ven — encontró uno durante el desarrollo.
 
+`npm run prueba-navegador` abre el sitio en un Chromium de verdad y recorre lo
+que hace un alumno en la primera clase: ejecutar, responder un `Leer`, arreglar
+un error y verificar un ejercicio, también en tamaño teléfono. Necesita el sitio
+armado y el navegador: `npm run build` y `npx playwright install chromium`.
+
 `tsc --noEmit` valida los tipos si tenés TypeScript instalado, pero no hace
 falta para correr nada.
 

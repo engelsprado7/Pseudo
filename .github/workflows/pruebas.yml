@@ -32,3 +32,6 @@ jobs:
       - run: npm test
       - run: npm run tipos
       - run: supabase/pruebas/correr.sh postgres://postgres@localhost:5432/postgres
+      # 'npm test' ya armó sitio/; esto lo prueba en un Chromium de verdad.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run prueba-navegador
