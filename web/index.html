@@ -13,7 +13,7 @@
     --panel: #ffffff;
     --borde: #e3e0d8;
     --texto: #23231f;
-    --tenue: #8a8880;
+    --tenue: #6b6962; /* #8a8880 daba 3,4:1 sobre el fondo; este pasa el 4,5:1 */
     --linea-activa: rgba(60, 50, 20, 0.04); /* translúcido: si fuera opaco taparía la selección */
 
     --sx-clave: #7a3fa8;
@@ -21,7 +21,7 @@
     --sx-oplogico: #a8531f;
     --sx-texto: #2c7a4b;
     --sx-numero: #b0521a;
-    --sx-comentario: #8a8880;
+    --sx-comentario: #6b6962;
     --sx-operador: #5c5a54;
     --sx-variable: #23231f;
     --sx-funcion: #1c4f9c;
@@ -273,6 +273,20 @@
        arriba, que si no esconde también estos. */
     .menu-panel button:not(.primario):not(.peligro):not(.clave) span { display: inline; }
     .menu-panel button:not(.primario):not(.peligro):not(.clave) { padding: 7px 9px; }
+  }
+  /* Paso a paso y Diagrama no tienen un icono que se explique solo: conservan
+     el rótulo mientras haya lugar. En el teléfono ya no lo hay. */
+  @media (min-width: 821px) and (max-width: 1100px) {
+    #btn-paso span, #btn-diagrama span { display: inline; }
+    #btn-paso, #btn-diagrama { padding: 5px 10px; }
+  }
+  /* Con el dedo, todo lo que se toca mide al menos 44 px. */
+  @media (pointer: coarse) {
+    header button, header select, .menu > summary, #btn-alternar-panel, #btn-enviar {
+      min-height: 44px;
+      min-width: 44px;
+      justify-content: center;
+    }
   }
 
   #zona-soltar {
@@ -1214,6 +1228,16 @@
     color: var(--tenue);
     background: var(--panel);
   }
+  /* Atajos de teclado en un teléfono: cuatro renglones que no sirven. */
+  @media (max-width: 820px) { footer { display: none; } }
+  /* En el teléfono la barra ocupaba cuatro renglones. Archivo y Ejecutar
+     comparten uno; el ejercicio, que es el más ancho, baja al de abajo. */
+  @media (max-width: 820px) {
+    #identidad { width: 100%; }
+    .grupo-final { margin-left: auto; }
+    .grupo-ejercicio { order: 1; width: 100%; }
+    .grupo-ejercicio select { flex: 1; max-width: none; }
+  }
   kbd {
     font-family: var(--mono);
     font-size: 11px;
@@ -1250,7 +1274,7 @@
   </div>
 
   <!-- Ejercicio -->
-  <div class="grupo">
+  <div class="grupo grupo-ejercicio">
     <select id="selector-ejercicio" aria-label="Ejercicio">
       <option value="">Sin ejercicio</option>
     </select>
