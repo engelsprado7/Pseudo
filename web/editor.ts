@@ -5,9 +5,9 @@
  * acá se convierten en subrayados de CodeMirror. Nada de esto necesita
  * servidor: son funciones puras sobre una cadena de texto.
  */
-import { EditorState, StateEffect, StateField } from "@codemirror/state";
+import { EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, crosshairCursor, Decoration, type DecorationSet } from "@codemirror/view";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentMore, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, indentUnit } from "@codemirror/language";
 import { linter, lintGutter, type Diagnostic as DiagnosticoCM } from "@codemirror/lint";
 
@@ -238,6 +238,25 @@ function itemDiagnostico(d: ReturnType<typeof analizar>[number]): HTMLElement {
     sug.className = "diag-sugerencia";
     sug.textContent = d.sugerencia;
     item.appendChild(sug);
+  }
+  if (d.arreglo !== undefined) {
+    const { rotulo, cambios } = d.arreglo;
+    const boton = document.createElement("button");
+    boton.type = "button";
+    boton.className = "diag-arreglo";
+    boton.textContent = rotulo;
+    boton.addEventListener("click", (e) => {
+      e.stopPropagation(); // si no, el clic del item mueve el cursor después
+      const doc = vista.state.doc;
+      vista.dispatch({
+        changes: cambios.map((c) => {
+          const from = doc.line(c.linea).from + c.columna - 1;
+          return { from, to: from + c.longitud, insert: c.texto };
+        }),
+      });
+      vista.focus();
+    });
+    item.appendChild(boton);
   }
   item.addEventListener("click", () => {
     const linea = vista.state.doc.line(Math.min(d.linea, vista.state.doc.lines));
@@ -1531,6 +1550,28 @@ for (const [selector, nombre] of [
     el.appendChild(span);
   }
 }
+
+const barraSimbolos = document.querySelector<HTMLElement>("#barra-simbolos")!;
+// Tocar un símbolo no tiene que sacarle el foco al editor: se cerraría el teclado.
+barraSimbolos.addEventListener("pointerdown", (e) => e.preventDefault());
+barraSimbolos.addEventListener("click", (e) => {
+  const boton = (e.target as HTMLElement).closest("button");
+  if (boton === null) return;
+  if (boton.dataset.sangrar !== undefined) {
+    indentMore(vista);
+  } else {
+    const texto = boton.dataset.insertar ?? "";
+    // Los pares dejan el cursor adentro, listo para escribir.
+    const par = texto === '""' || texto === "()" || texto === "[]";
+    vista.dispatch(
+      vista.state.changeByRange((r) => ({
+        changes: { from: r.from, to: r.to, insert: texto },
+        range: EditorSelection.cursor(r.from + (par ? 1 : texto.length)),
+      })),
+    );
+  }
+  vista.focus();
+});
 
 // El <details> abre y cierra solo, pero no se entera de los clics de afuera, y
 // un menú que queda abierto tapando la pantalla se siente roto.

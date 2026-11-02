@@ -380,6 +380,9 @@ class Parser {
           this.abrirBloque(inicio, "Fin");
           principal = this.parsearBloque("Fin");
           this.cerrarBloque();
+        } else if (esAperturaPSeInt(this.actual())) {
+          this.errores.push(errorPSeInt(this.actual(), this.tokens));
+          throw new ErrorSintactico();
         } else {
           this.fallar(
             `no esperaba ${describir(this.actual())} en el nivel principal del programa.`,
@@ -1198,4 +1201,40 @@ class Parser {
         this.fallar(`no esperaba ${describir(t)} dentro de una expresión.`);
     }
   }
+}
+
+/**
+ * Quien viene de PSeInt escribe `Algoritmo nombre … FinAlgoritmo` (o `Proceso`).
+ * Es el error más común al empezar, y el genérico "no esperaba" no le dice qué
+ * cambiar; este lo dice y trae el arreglo hecho.
+ */
+function esAperturaPSeInt(t: Token): boolean {
+  return t.tipo === "IDENTIFICADOR" && (t.nombre === "algoritmo" || t.nombre === "proceso");
+}
+
+function errorPSeInt(t: Token, tokens: Token[]): Diagnostico {
+  const i = tokens.indexOf(t);
+  const nombre = tokens[i + 1];
+  // La apertura se reemplaza entera, con el nombre del programa si lo tiene.
+  const hasta =
+    nombre !== undefined && nombre.tipo === "IDENTIFICADOR" && nombre.linea === t.linea
+      ? nombre.columna + nombre.lexema.length
+      : t.columna + t.lexema.length;
+  const cierre = `fin${t.lexema.toLowerCase()}`;
+  const cambios = [
+    { linea: t.linea, columna: t.columna, longitud: hasta - t.columna, texto: "Inicio" },
+    ...tokens
+      .slice(i + 1)
+      .filter((c) => c.tipo === "IDENTIFICADOR" && c.nombre === cierre)
+      .map((c) => ({ linea: c.linea, columna: c.columna, longitud: c.lexema.length, texto: "Fin" })),
+  ];
+  return {
+    ...error(
+      { linea: t.linea, columna: t.columna },
+      t.lexema.length,
+      `'${t.lexema}' es de PSeInt: acá el programa empieza con 'Inicio' y termina con 'Fin'.`,
+      `Cambiá '${t.lexema}' por 'Inicio' y 'Fin${t.lexema}' por 'Fin'.`,
+    ),
+    arreglo: { rotulo: "Cambiar por Inicio … Fin", cambios },
+  };
 }
