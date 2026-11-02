@@ -13,6 +13,15 @@ permissions:
 jobs:
   pruebas:
     runs-on: ubuntu-latest
+    # Una base vacía para armar el esquema desde las migraciones y probar
+    # los permisos (supabase/pruebas/).
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-retries 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -22,3 +31,4 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run tipos
+      - run: supabase/pruebas/correr.sh postgres://postgres@localhost:5432/postgres

@@ -497,7 +497,11 @@ web/
   nube.json       URL y clave publishable (pública; sin ella no hay nube)
   index.html      Página
 supabase/
-  esquema.sql     Tablas, RLS y funciones. Se pega en el SQL Editor.
+  migrations/     Tablas, RLS y funciones, en orden. La primera es la base de
+                  producción; cada cambio va en una nueva con fecha en el
+                  nombre y nunca se edita una que ya se aplicó.
+  pruebas/        Lo que cada quien no tiene que poder ver ni hacer. Corre en
+                  CI: `supabase/pruebas/correr.sh <url de una base vacía>`.
 sitio/            Generado por `npm run build`. Esto es lo que se despliega.
                   No se versiona: lo reconstruye el workflow.
 ejemplos/
