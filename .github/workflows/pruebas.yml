@@ -1,0 +1,24 @@
+name: pruebas
+
+# Vercel publica main apenas se mergea y no corre los tests. Este check es
+# obligatorio para mergear un PR, así que lo que llega a main ya pasó por acá.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run tipos
