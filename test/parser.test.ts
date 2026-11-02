@@ -670,3 +670,29 @@ Fin`;
     );
   });
 });
+
+describe("programa escrito al estilo PSeInt", () => {
+  /** Aplica los cambios de atrás para adelante, para no correr las posiciones. */
+  function arreglar(fuente: string): string {
+    const d = analizar(fuente).errores[0]!;
+    assert.ok(d.arreglo, "el primer error trae un arreglo");
+    const lineas = fuente.split("\n");
+    for (const c of [...d.arreglo.cambios].reverse()) {
+      const l = lineas[c.linea - 1]!;
+      lineas[c.linea - 1] = l.slice(0, c.columna - 1) + c.texto + l.slice(c.columna - 1 + c.longitud);
+    }
+    return lineas.join("\n");
+  }
+
+  test("'Algoritmo' explica qué cambiar y el arreglo deja el programa sin errores", () => {
+    const fuente = "Algoritmo suma\n  Definir a Como Entero\n  a <- 1\nFinAlgoritmo";
+    assert.match(analizar(fuente).errores[0]!.mensaje, /es de PSeInt/);
+    const arreglado = arreglar(fuente);
+    assert.equal(arreglado, "Inicio\n  Definir a Como Entero\n  a <- 1\nFin");
+    assert.deepEqual(analizar(arreglado).errores, []);
+  });
+
+  test("también 'Proceso', sin nombre y en cualquier combinación de mayúsculas", () => {
+    assert.equal(arreglar("proceso\n  Escribir 1\nFINPROCESO"), "Inicio\n  Escribir 1\nFin");
+  });
+});

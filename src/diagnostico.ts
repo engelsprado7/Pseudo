@@ -15,6 +15,14 @@ export interface Diagnostico extends Posicion {
   sugerencia?: string;
   /** Largo en caracteres, para subrayar en el editor. */
   longitud: number;
+  /** Corrección que el editor puede aplicar sola, con un botón. */
+  arreglo?: { rotulo: string; cambios: Cambio[] };
+}
+
+/** Reemplaza `longitud` caracteres desde la posición por `texto`. */
+export interface Cambio extends Posicion {
+  longitud: number;
+  texto: string;
 }
 
 export function error(
